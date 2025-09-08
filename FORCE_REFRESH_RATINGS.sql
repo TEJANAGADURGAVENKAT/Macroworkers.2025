@@ -15,3 +15,4 @@ WHERE role = 'worker'
   AND last_rating_update > now() - interval '1 minute';
 
 
+

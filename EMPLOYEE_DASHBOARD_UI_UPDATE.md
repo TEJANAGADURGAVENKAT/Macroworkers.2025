@@ -275,3 +275,4 @@ The Employee Dashboard UI has been completely transformed with:
 The new UI provides workers with a clear, comprehensive view of their performance and progress, encouraging continued improvement and engagement with the platform.
 
 
+

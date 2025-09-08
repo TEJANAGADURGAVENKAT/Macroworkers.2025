@@ -103,3 +103,4 @@ GROUP BY p.user_id, p.full_name, p.rating
 ORDER BY correct_rating DESC;
 
 
+

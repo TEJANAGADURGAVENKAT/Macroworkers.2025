@@ -98,3 +98,4 @@ COMMIT;
 SELECT 'UI refresh completed! Please refresh your browser and check the My Ratings tab.' as result;
 
 
+

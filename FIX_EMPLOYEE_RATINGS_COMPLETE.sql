@@ -171,3 +171,4 @@ COMMIT;
 -- 7. ✅ Rejected submissions are completely excluded from calculations
 
 
+

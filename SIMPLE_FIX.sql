@@ -56,3 +56,4 @@ SELECT full_name, rating, designation FROM public.profiles WHERE full_name ILIKE
 
 
 
+
