@@ -26,18 +26,25 @@ import {
   User,
   Wallet,
   Activity,
+<<<<<<< HEAD
   RefreshCw,
   Award,
   MessageSquare,
   Calendar
+=======
+  RefreshCw
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 } from "lucide-react";
 import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+<<<<<<< HEAD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEmployeeRatingSummary, getDesignationColor, getDesignationLabel } from "@/lib/employee-ratings-api";
+=======
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
 const WorkerDashboard = () => {
   const { profile, user } = useAuth();
@@ -54,6 +61,7 @@ const WorkerDashboard = () => {
     tasks: 0,
     averagePerTask: 0
   });
+<<<<<<< HEAD
   const [ratingData, setRatingData] = useState({
     averageRating: 0,
     designation: 'L1' as 'L1' | 'L2' | 'L3',
@@ -63,6 +71,8 @@ const WorkerDashboard = () => {
     pendingRatingsCount: 0,
     ratingHistory: [] as any[]
   });
+=======
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
   const displayName = (profile?.full_name || user?.email || "").split("@")[0] || "User";
   const sidebarItems = [
@@ -150,9 +160,12 @@ const WorkerDashboard = () => {
         averagePerTask: weeklyAverage
       });
 
+<<<<<<< HEAD
       // Load rating data
       await loadRatingData();
 
+=======
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -160,6 +173,7 @@ const WorkerDashboard = () => {
     }
   };
 
+<<<<<<< HEAD
   const loadRatingData = async () => {
     if (!user) return;
 
@@ -213,6 +227,8 @@ const WorkerDashboard = () => {
     }
   };
 
+=======
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -234,6 +250,7 @@ const WorkerDashboard = () => {
     }
   };
 
+<<<<<<< HEAD
   const getDesignationColor = (designation: string) => {
     switch (designation) {
       case "L1": return "bg-red-100 text-red-700";
@@ -275,6 +292,8 @@ const WorkerDashboard = () => {
     ));
   };
 
+=======
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const statsCards = [
     { label: "Current Balance", value: formatINR(stats.currentBalance), icon: IndianRupee, color: "text-success" },
     { label: "Tasks Completed", value: stats.tasksCompleted.toString(), icon: CheckCircle, color: "text-primary" },
@@ -366,6 +385,7 @@ const WorkerDashboard = () => {
                   ))}
                 </div>
 
+<<<<<<< HEAD
                 {/* Dashboard Tabs */}
                 <Tabs defaultValue="overview" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
@@ -681,6 +701,95 @@ const WorkerDashboard = () => {
                     </div>
                   </TabsContent>
                 </Tabs>
+=======
+                <div className="grid lg:grid-cols-3 gap-6">
+                  {/* Recent Tasks */}
+                  <div className="lg:col-span-2">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Recent Tasks</CardTitle>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to="/worker/tasks">View All</Link>
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {recentTasks.length === 0 ? (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No tasks completed yet.</p>
+                            <Button className="mt-2" asChild>
+                              <Link to="/worker/jobs">Find Your First Task</Link>
+                            </Button>
+                          </div>
+                        ) : (
+                          recentTasks.map((task) => (
+                            <div key={task.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                              <div className="flex-1">
+                                <h4 className="font-medium">{task.task?.title || 'Unknown Task'}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Submitted: {formatTimeAgo(task.submitted_at)}
+                                </p>
+                              </div>
+                              <div className="text-right space-y-1">
+                                <p className="font-semibold">{formatINR(task.task?.budget || 0)}</p>
+                                <Badge 
+                                  variant="secondary"
+                                  className={getStatusColor(task.status)}
+                                >
+                                  {task.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <Button className="w-full bg-gradient-primary" asChild>
+                          <Link to="/worker/jobs">Find New Tasks</Link>
+                        </Button>
+                        <Button variant="outline" className="w-full" asChild>
+                          <Link to="/worker/earnings">Withdraw Earnings</Link>
+                        </Button>
+                        <Button variant="outline" className="w-full" asChild>
+                          <Link to="/worker/profile">Update Profile</Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Earnings Summary */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>This Week</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Earnings</span>
+                            <span className="font-semibold">{formatINR(weeklyStats.earnings)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Tasks</span>
+                            <span className="font-semibold">{weeklyStats.tasks}</span>
+                          </div>
+                          <Separator />
+                          <div className="flex justify-between">
+                            <span className="font-medium">Average per task</span>
+                            <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
               </>
             )}
           </div>

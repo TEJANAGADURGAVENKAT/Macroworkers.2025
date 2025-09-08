@@ -133,6 +133,7 @@
   body {
     @apply bg-background text-foreground;
   }
+<<<<<<< HEAD
 }
 
 @layer utilities {
@@ -142,4 +143,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+=======
+>>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 }
