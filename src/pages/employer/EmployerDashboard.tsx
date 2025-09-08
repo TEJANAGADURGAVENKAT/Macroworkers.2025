@@ -831,7 +831,6 @@ const EmployerDashboard = () => {
                               </div>
                             </div>
                           )}
-
                   <CardContent className="space-y-3">
                     {recentSubmissions.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
