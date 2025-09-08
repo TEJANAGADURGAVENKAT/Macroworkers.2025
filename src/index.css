@@ -133,6 +133,35 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Global scrollbar styling for cross-browser compatibility */
+  * {
+    /* Note: scrollbar-width is not supported in Safari, using webkit prefixes only */
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @layer utilities {
@@ -142,5 +171,74 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Safari-compatible scrollbar styling */
+  .scrollbar-thin {
+    /* Note: scrollbar-width is not supported in Safari, using webkit prefixes only */
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--foreground));
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    /* Safari and Chrome */
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safari-compatible backdrop blur */
+  .backdrop-blur-safari {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Fallback for browsers that don't support backdrop-filter */
+  @supports not (backdrop-filter: blur(8px)) {
+    .backdrop-blur-safari {
+      background-color: hsl(var(--card) / 0.8);
+    }
+  }
+
+  /* Override any scrollbar-width on pre elements for Safari compatibility */
+  pre {
+    scrollbar-width: unset !important;
+  }
+
+  pre::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  pre::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  pre::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+
+  pre::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
 }
-"/* redeploy */" 
+

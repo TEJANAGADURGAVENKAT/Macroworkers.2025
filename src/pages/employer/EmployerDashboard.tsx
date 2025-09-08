@@ -622,7 +622,7 @@ const EmployerDashboard = () => {
                     )}
                   </CardContent>
                 </Card>
-                </div>
+              </div>
 
               {/* Submitted Tasks & Quick Actions */}
               <div className="space-y-6">
@@ -831,76 +831,9 @@ const EmployerDashboard = () => {
                               </div>
                             </div>
                           )}
-                  <CardContent className="space-y-3">
-                    {recentSubmissions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No submissions yet.
-                      </p>
-                    ) : (
-                      recentSubmissions.slice(0, 4).map((submission) => (
-                        <div key={submission.id} className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{submission.task_title || 'Unknown Task'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Worker: {submission.worker_profile?.full_name || `Worker ${submission.worker_id.substring(0, 8)}`} • {formatTimeAgo(submission.submitted_at)}
-                            </p>
-                          </div>
-                          <Badge 
-                            variant="secondary" 
-                            className={getStatusColor(submission.status)}
-                          >
-                            {submission.status}
-                            </Badge>
                         </div>
                       ))
                     )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button className="w-full bg-gradient-primary" asChild>
-                      <Link to="/employer/create-task">Create New Task</Link>
-                    </Button>
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link to="/employer/submissions">Review Submissions</Link>
-                    </Button>
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link to="/employer/payments">Manage Payments</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Overview</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Employer Name</span>
-                        <span className="font-semibold">{displayName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Tasks</span>
-                        <span className="font-semibold">{tasks.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Active Tasks</span>
-                        <span className="font-semibold">{stats.activeCampaigns}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Workers</span>
-                        <span className="font-semibold">{stats.totalEmployeesWorkers}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Budget</span>
-                        <span className="font-semibold">{formatINR(stats.monthlySpent)}</span>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </div>
