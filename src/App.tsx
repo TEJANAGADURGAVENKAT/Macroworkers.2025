@@ -57,10 +57,7 @@ import AdminProfile from "./pages/admin/AdminProfile";
 import EmployerProfile from "./pages/employer/EmployerProfile";
 import TaskDetails from "./pages/employer/TaskDetails";
 import SubmissionDetail from "./pages/employer/SubmissionDetail";
-<<<<<<< HEAD
 import RoleBasedTasks from "./pages/employer/RoleBasedTasks";
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
 const queryClient = new QueryClient();
 
@@ -137,14 +134,11 @@ function App() {
                     <CreateTask />
                   </ProtectedRoute>
                 } />
-<<<<<<< HEAD
                 <Route path="/employer/role-based-tasks" element={
                   <ProtectedRoute allowedRoles={['employer']}>
                     <RoleBasedTasks />
                   </ProtectedRoute>
                 } />
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
                 <Route path="/employer/submissions" element={
                   <ProtectedRoute allowedRoles={['employer']}>
                     <SubmissionsReview />

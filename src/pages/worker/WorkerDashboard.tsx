@@ -26,25 +26,18 @@ import {
   User,
   Wallet,
   Activity,
-<<<<<<< HEAD
   RefreshCw,
   Award,
   MessageSquare,
   Calendar
-=======
-  RefreshCw
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 } from "lucide-react";
 import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-<<<<<<< HEAD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEmployeeRatingSummary, getDesignationColor, getDesignationLabel } from "@/lib/employee-ratings-api";
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
 const WorkerDashboard = () => {
   const { profile, user } = useAuth();
@@ -61,7 +54,6 @@ const WorkerDashboard = () => {
     tasks: 0,
     averagePerTask: 0
   });
-<<<<<<< HEAD
   const [ratingData, setRatingData] = useState({
     averageRating: 0,
     designation: 'L1' as 'L1' | 'L2' | 'L3',
@@ -71,8 +63,6 @@ const WorkerDashboard = () => {
     pendingRatingsCount: 0,
     ratingHistory: [] as any[]
   });
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
   const displayName = (profile?.full_name || user?.email || "").split("@")[0] || "User";
   const sidebarItems = [
@@ -160,12 +150,9 @@ const WorkerDashboard = () => {
         averagePerTask: weeklyAverage
       });
 
-<<<<<<< HEAD
       // Load rating data
       await loadRatingData();
 
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -173,7 +160,6 @@ const WorkerDashboard = () => {
     }
   };
 
-<<<<<<< HEAD
   const loadRatingData = async () => {
     if (!user) return;
 
@@ -226,9 +212,6 @@ const WorkerDashboard = () => {
       });
     }
   };
-
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -250,7 +233,6 @@ const WorkerDashboard = () => {
     }
   };
 
-<<<<<<< HEAD
   const getDesignationColor = (designation: string) => {
     switch (designation) {
       case "L1": return "bg-red-100 text-red-700";
@@ -291,9 +273,6 @@ const WorkerDashboard = () => {
       />
     ));
   };
-
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const statsCards = [
     { label: "Current Balance", value: formatINR(stats.currentBalance), icon: IndianRupee, color: "text-success" },
     { label: "Tasks Completed", value: stats.tasksCompleted.toString(), icon: CheckCircle, color: "text-primary" },
@@ -385,7 +364,6 @@ const WorkerDashboard = () => {
                   ))}
                 </div>
 
-<<<<<<< HEAD
                 {/* Dashboard Tabs */}
                 <Tabs defaultValue="overview" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
@@ -701,7 +679,6 @@ const WorkerDashboard = () => {
                     </div>
                   </TabsContent>
                 </Tabs>
-=======
                 <div className="grid lg:grid-cols-3 gap-6">
                   {/* Recent Tasks */}
                   <div className="lg:col-span-2">
@@ -789,7 +766,6 @@ const WorkerDashboard = () => {
                     </Card>
                   </div>
                 </div>
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
               </>
             )}
           </div>

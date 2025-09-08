@@ -29,26 +29,19 @@ import {
   FileText,
   CreditCard,
   Loader2,
-<<<<<<< HEAD
   Trash2,
   Star,
   MessageSquare
-=======
-  Trash2
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DebugPanel } from "@/components/ui/debug-panel";
-<<<<<<< HEAD
 import StarRating from "@/components/ui/star-rating-simple";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { updateEmployeeRating, getDesignationColor, getDesignationLabel } from "@/lib/employee-ratings-api";
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
 interface Task {
   id: string;
@@ -67,7 +60,6 @@ interface Submission {
   id: string;
   task_id: string;
   worker_id: string;
-<<<<<<< HEAD
   status: 'pending' | 'approved' | 'rejected' | 'assigned';
   submitted_at: string;
   proof_text?: string;
@@ -81,22 +73,12 @@ interface Submission {
     rating?: number;
     total_tasks_completed?: number;
     designation?: string;
-=======
-  status: 'pending' | 'approved' | 'rejected';
-  submitted_at: string;
-  task_title?: string;
-  worker_profile?: {
-    full_name: string;
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   };
 }
 
 const EmployerDashboard = () => {
   const { profile, user } = useAuth();
-<<<<<<< HEAD
   const { toast } = useToast();
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
@@ -107,12 +89,9 @@ const EmployerDashboard = () => {
     completionRate: 0
   });
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
-<<<<<<< HEAD
   const [submissionRatings, setSubmissionRatings] = useState<Record<string, number>>({});
   const [submissionFeedback, setSubmissionFeedback] = useState<Record<string, string>>({});
   const [submittingRating, setSubmittingRating] = useState<string | null>(null);
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
   const displayName = (profile?.full_name || user?.email || "").split("@")[0] || "User";
   
@@ -152,7 +131,6 @@ const EmployerDashboard = () => {
 
       console.log('Tasks loaded:', tasksData);
 
-<<<<<<< HEAD
       // Load recent submissions with more details
       const { data: submissionsData, error: submissionsError } = await supabase
         .from('task_submissions')
@@ -168,15 +146,6 @@ const EmployerDashboard = () => {
         .eq('tasks.created_by', user.id)
         .order('submitted_at', { ascending: false })
         .limit(10);
-=======
-      // Load recent submissions
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from('task_submissions')
-        .select('*')
-        .eq('employer_id', user.id)
-        .order('submitted_at', { ascending: false })
-        .limit(5);
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 
       if (submissionsError) {
         console.error('Submissions query error:', submissionsError);
@@ -185,7 +154,6 @@ const EmployerDashboard = () => {
 
       console.log('Submissions loaded:', submissionsData);
 
-<<<<<<< HEAD
       // Get worker profiles for submissions
       if (submissionsData && submissionsData.length > 0) {
         const workerIds = [...new Set(submissionsData.map(s => s.worker_id))];
@@ -195,32 +163,10 @@ const EmployerDashboard = () => {
           .from('profiles')
           .select('user_id, full_name, rating, total_tasks_completed, designation')
           .in('user_id', workerIds);
-
-=======
-      // Get worker profiles and task titles for submissions
-      if (submissionsData && submissionsData.length > 0) {
-        const workerIds = [...new Set(submissionsData.map(s => s.worker_id))];
-        const taskIds = [...new Set(submissionsData.map(s => s.task_id))];
-        
-        // Fetch worker profiles
-        const { data: workerProfiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', workerIds);
-
-        // Fetch task titles
-        const { data: taskTitles } = await supabase
-          .from('tasks')
-          .select('id, title')
-          .in('id', taskIds);
-
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
         const workerProfileMap = new Map();
         workerProfiles?.forEach(profile => {
           workerProfileMap.set(profile.user_id, profile);
         });
-
-<<<<<<< HEAD
         const submissionsWithData = submissionsData.map(submission => ({
           ...submission,
           status: submission.status as 'pending' | 'approved' | 'rejected' | 'assigned',
@@ -233,19 +179,6 @@ const EmployerDashboard = () => {
             rating: 0,
             total_tasks_completed: 0,
             designation: 'L1'
-=======
-        const taskTitleMap = new Map();
-        taskTitles?.forEach(task => {
-          taskTitleMap.set(task.id, task.title);
-        });
-
-        const submissionsWithData = submissionsData.map(submission => ({
-          ...submission,
-          status: submission.status as 'pending' | 'approved' | 'rejected',
-          task_title: taskTitleMap.get(submission.task_id) || 'Unknown Task',
-          worker_profile: workerProfileMap.get(submission.worker_id) || {
-            full_name: `Worker ${submission.worker_id.substring(0, 8)}`
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
           }
         }));
 
@@ -282,8 +215,6 @@ const EmployerDashboard = () => {
       setLoading(false);
     }
   };
-
-<<<<<<< HEAD
   const handleRatingChange = (submissionId: string, rating: number) => {
     setSubmissionRatings(prev => ({
       ...prev,
@@ -367,25 +298,17 @@ const EmployerDashboard = () => {
       setSubmittingRating(null);
     }
   };
-
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-success/10 text-success";
       case "pending": return "bg-warning/10 text-warning";
       case "approved": return "bg-success/10 text-success";
       case "rejected": return "bg-destructive/10 text-destructive";
-<<<<<<< HEAD
       case "assigned": return "bg-blue-100 text-blue-700";
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
       case "paused": return "bg-muted text-muted-foreground";
       default: return "bg-muted text-muted-foreground";
     }
   };
-
-<<<<<<< HEAD
   const getDesignationColor = (designation: string) => {
     switch (designation) {
       case "L1": return "bg-red-100 text-red-700";
@@ -403,9 +326,6 @@ const EmployerDashboard = () => {
       default: return "Unknown";
     }
   };
-
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -702,21 +622,13 @@ const EmployerDashboard = () => {
                     )}
                   </CardContent>
                 </Card>
-              </div>
+                </div>
 
-<<<<<<< HEAD
               {/* Submitted Tasks & Quick Actions */}
               <div className="space-y-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Submitted Tasks</CardTitle>
-=======
-              {/* Recent Submissions & Quick Actions */}
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Recent Submissions</CardTitle>
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
                     <Button variant="outline" size="sm" asChild>
                       <Link to="/employer/submissions">
                         <AlertTriangle className="h-3 w-3 mr-1" />
@@ -724,7 +636,6 @@ const EmployerDashboard = () => {
                       </Link>
                     </Button>
                   </CardHeader>
-<<<<<<< HEAD
                   <CardContent className="space-y-4">
                     {recentSubmissions.length === 0 ? (
                       <div className="text-center py-8">
@@ -940,8 +851,7 @@ const EmployerDashboard = () => {
                             className={getStatusColor(submission.status)}
                           >
                             {submission.status}
-                          </Badge>
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
+                            </Badge>
                         </div>
                       ))
                     )}

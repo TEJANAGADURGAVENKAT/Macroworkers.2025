@@ -13,12 +13,8 @@ import {
   CreditCard,
   User,
   LogOut,
-<<<<<<< HEAD
   Settings,
   Plus
-=======
-  Settings
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -74,10 +70,7 @@ const Navigation = () => {
           { name: "Dashboard", href: "/employer", icon: Settings },
           { name: "My Tasks", href: "/employer/campaigns", icon: Briefcase },
           { name: "Create Task", href: "/employer/create-task", icon: FileText },
-<<<<<<< HEAD
           { name: "Role-Based Tasks", href: "/employer/role-based-tasks", icon: Plus },
-=======
->>>>>>> 8923d1417afa2f21dcb51ed1cb6520730dfd74f7
           { name: "Blog", href: "/blogs", icon: FileText },
           { name: "Payments", href: "/employer/payments", icon: CreditCard },
           { name: "Profile", href: "/employer/profile", icon: User },
