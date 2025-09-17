@@ -58,6 +58,10 @@ import EmployerProfile from "./pages/employer/EmployerProfile";
 import TaskDetails from "./pages/employer/TaskDetails";
 import SubmissionDetail from "./pages/employer/SubmissionDetail";
 import RoleBasedTasks from "./pages/employer/RoleBasedTasks";
+import ITTaskFormDemo from "./pages/demo/ITTaskFormDemo";
+import DigitalMarketingTaskFormDemo from "./pages/demo/DigitalMarketingTaskFormDemo";
+import BlockchainTaskFormDemo from "./pages/demo/BlockchainTaskFormDemo";
+import SubcategoryDemo from "./pages/demo/SubcategoryDemo";
 
 const queryClient = new QueryClient();
 
@@ -210,6 +214,12 @@ function App() {
                     <AdminProfile />
                   </ProtectedRoute>
                 } />
+
+                {/* Demo Routes */}
+                <Route path="/demo/it-task-form" element={<ITTaskFormDemo />} />
+                <Route path="/demo/digital-marketing-task-form" element={<DigitalMarketingTaskFormDemo />} />
+                <Route path="/demo/blockchain-task-form" element={<BlockchainTaskFormDemo />} />
+                <Route path="/demo/subcategories" element={<SubcategoryDemo />} />
 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />

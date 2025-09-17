@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatINR } from '@/lib/utils';
+import { useSkillsByCategory } from '@/hooks/useSubcategories';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -169,6 +170,13 @@ const RoleBasedTasks = () => {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [minRating, setMinRating] = useState<number>(1.0);
+  
+  // Dynamic subcategory fetching based on selected category
+  const categoryNameForSkills = selectedCategory?.name === 'IT Department' ? 'IT' : 
+                               selectedCategory?.name === 'Digital Marketing' ? 'Digital Marketing' :
+                               selectedCategory?.name === 'Blockchain' ? 'Blockchain/AI' : '';
+  
+  const { skillsBySubcategory, allSkills, loading: skillsLoading, error: skillsError } = useSkillsByCategory(categoryNameForSkills);
   const [formData, setFormData] = useState<TaskFormData>({
     // Step 1: Task Details
     title: '',
@@ -231,11 +239,95 @@ const RoleBasedTasks = () => {
 
   const deviceTypes = ["Desktop", "Mobile", "Tablet"];
 
-  const skillOptions = [
-    "Social Media", "Content Writing", "App Testing", "Surveys", 
-    "Data Entry", "Translation", "Voice Recording", "Product Reviews",
-    "Website Testing", "Email Marketing", "SEO", "Graphic Design"
-  ];
+  // Organized skills by categories
+  const skillsByCategory = {
+    "Frontend Development": ["HTML", "CSS", "JavaScript", "React.js", "UI/UX Basics"],
+    "Backend Development": ["Node.js", "Express.js", "Python", "Databases", "API Development"],
+    "Full Stack Development": ["React.js", "Node.js", "MongoDB", "REST APIs", "Version Control"],
+    "Mobile Development": ["Flutter", "React Native", "iOS", "Android", "App Store Deployment"],
+    "Database Administration": ["SQL", "Database Optimization", "Backups", "Security", "Performance Tuning"],
+    "Cloud & DevOps": ["AWS", "Azure", "CI/CD", "Docker", "Kubernetes"],
+    "SEO Specialist": ["Keyword Research", "On-page SEO", "Off-page SEO", "Technical SEO", "Content Optimization"],
+    "Content Marketing": ["Content Writing", "Copywriting", "Blog Management", "Storytelling", "Editing"],
+    "Social Media Management": ["Social Media Strategy", "Content Scheduling", "Analytics & Insights", "Community Engagement", "Paid Campaigns"],
+    "PPC Advertising": ["Google Ads", "Facebook Ads", "Campaign Optimization", "A/B Testing", "Conversion Tracking"],
+    "Email Marketing": ["Email Campaigns", "Automation Tools", "A/B Testing", "Copywriting", "List Segmentation"],
+    "Blockchain Development": ["Solidity", "Web3.js", "Ethereum", "Smart Contracts", "DeFi Protocols"],
+    "Smart Contract Auditing": ["Solidity", "Security Testing", "Gas Optimization", "MythX", "Slither"],
+    "Web3 Development": ["React.js", "Next.js", "Ethers.js", "IPFS", "Smart Contracts"],
+    "Crypto Analysis": ["Technical Analysis", "Fundamental Analysis", "On-chain Data", "Market Trends", "Risk Management"],
+    "Blockchain Architecture": ["Consensus Mechanisms", "System Design", "Node Management", "Scalability", "Security"],
+    "NFT/Token Development": ["ERC-20", "ERC-721", "ERC-1155", "Tokenomics", "Minting Contracts"],
+    "General Tasks": ["App Testing", "Surveys", "Data Entry", "Translation", "Voice Recording", "Product Reviews", "Website Testing"]
+  };
+
+  // Map roles to their specific skill categories
+  const roleToSkillsMapping = {
+    "Frontend Developer": ["Frontend Development"],
+    "Backend Developer": ["Backend Development"],
+    "Full Stack Developer": ["Frontend Development", "Backend Development", "Full Stack Development"],
+    "Mobile App Developer": ["Mobile Development"],
+    "Database Administrator (DBA)": ["Database Administration"],
+    "Cloud Engineer / DevOps": ["Cloud & DevOps"],
+    "Cybersecurity Specialist": ["Database Administration", "Cloud & DevOps"], // Security related
+    "QA / Software Tester": ["Frontend Development", "Backend Development"], // Testing both
+    "System Administrator": ["Cloud & DevOps", "Database Administration"],
+    "UI/UX Designer": ["Frontend Development"],
+    "AI/ML Engineer": ["Backend Development", "Cloud & DevOps"],
+    "SEO Specialist": ["SEO Specialist"],
+    "Content Writer / Copywriter": ["Content Marketing"],
+    "Social Media Manager": ["Social Media Management"],
+    "Performance Marketer (PPC/Ads)": ["PPC Advertising"],
+    "Email Marketing Specialist": ["Email Marketing"],
+    "Graphic Designer": ["Content Marketing", "Social Media Management"],
+    "Video Editor / Motion Graphics": ["Content Marketing", "Social Media Management"],
+    "Influencer Marketing Manager": ["Social Media Management"],
+    "Analytics Specialist": ["SEO Specialist", "PPC Advertising", "Email Marketing"],
+    "Blockchain Developer": ["Blockchain Development"],
+    "Smart Contract Auditor": ["Smart Contract Auditing"],
+    "Web3 Developer": ["Web3 Development"],
+    "Crypto Analyst": ["Crypto Analysis"],
+    "Blockchain Architect": ["Blockchain Architecture"],
+    "NFT/Token Developer": ["NFT/Token Development"]
+  };
+
+  // Get skills for the selected role
+  const getSkillsForRole = (roleName: string) => {
+    const relevantCategories = roleToSkillsMapping[roleName] || [];
+    const roleSkills: Record<string, string[]> = {};
+    
+    relevantCategories.forEach(category => {
+      if (skillsByCategory[category]) {
+        roleSkills[category] = skillsByCategory[category];
+      }
+    });
+    
+    return roleSkills;
+  };
+
+  // Role-specific skills mapping for precise skill selection
+  const skillsByRole = {
+    "Frontend Developer": ["HTML", "CSS", "JavaScript", "React.js", "UI/UX Basics"],
+    "Backend Developer": ["Node.js", "Express.js", "Python", "Databases", "API Development"],
+    "Full Stack Developer": ["React.js", "Node.js", "MongoDB", "REST APIs", "Version Control"],
+    "Mobile App Developer": ["Flutter", "React Native", "iOS", "Android", "App Store Deployment"],
+    "Database Administrator (DBA)": ["SQL", "Database Optimization", "Backups", "Security", "Performance Tuning"],
+    "Cloud Engineer / DevOps": ["AWS", "Azure", "CI/CD", "Docker", "Kubernetes"],
+    "SEO Specialist": ["Keyword Research", "On-page SEO", "Off-page SEO", "Technical SEO", "Content Optimization"],
+    "Content Writer / Copywriter": ["Content Writing", "Copywriting", "Blog Management", "Storytelling", "Editing"],
+    "Social Media Manager": ["Social Media Strategy", "Content Scheduling", "Analytics & Insights", "Community Engagement", "Paid Campaigns"],
+    "Performance Marketer (PPC/Ads)": ["Google Ads", "Facebook Ads", "Campaign Optimization", "A/B Testing", "Conversion Tracking"],
+    "Email Marketing Specialist": ["Email Campaigns", "Automation Tools", "A/B Testing", "Copywriting", "List Segmentation"],
+    "Blockchain Developer": ["Solidity", "Web3.js", "Ethereum", "Smart Contracts", "DeFi Protocols"],
+    "Smart Contract Auditor": ["Solidity", "Security Testing", "Gas Optimization", "MythX", "Slither"],
+    "Web3 Developer": ["React.js", "Next.js", "Ethers.js", "IPFS", "Smart Contracts"],
+    "Crypto Analyst": ["Technical Analysis", "Fundamental Analysis", "On-chain Data", "Market Trends", "Risk Management"],
+    "Blockchain Architect": ["Consensus Mechanisms", "System Design", "Node Management", "Scalability", "Security"],
+    "NFT/Token Developer": ["ERC-20", "ERC-721", "ERC-1155", "Tokenomics", "Minting Contracts"]
+  };
+
+  // Flatten all skills for the dropdown (fallback)
+  const skillOptions = Object.values(skillsByCategory).flat();
 
   useEffect(() => {
     if (isDialogOpen) {
@@ -322,6 +414,7 @@ const RoleBasedTasks = () => {
   const handleCreateTask = (role: Role, category: Category) => {
     setSelectedRole(role);
     setSelectedCategory(category);
+    setSelectedSkills([]); // Clear skills when role changes
     setFormData(prev => ({
       ...prev,
       category: category.name,
@@ -969,6 +1062,11 @@ const RoleBasedTasks = () => {
 
                 <div className="space-y-2">
                   <Label>Required Skills</Label>
+                  {selectedRole && (
+                    <p className="text-sm text-muted-foreground">
+                      Select required skills for <strong>{selectedRole.name}</strong>
+                    </p>
+                  )}
                   <Select value="" onValueChange={(value) => {
                     if (value && !selectedSkills.includes(value)) {
                       setSelectedSkills(prev => [...prev, value]);
@@ -977,10 +1075,49 @@ const RoleBasedTasks = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Add skill filter" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {skillOptions.filter(skill => !selectedSkills.includes(skill)).map((skill) => (
-                        <SelectItem key={skill} value={skill}>{skill}</SelectItem>
-                      ))}
+                    <SelectContent className="max-h-80">
+                      {skillsLoading ? (
+                        <div className="p-4 text-center text-gray-500">
+                          Loading skills...
+                        </div>
+                      ) : Object.keys(skillsBySubcategory).length > 0 ? (
+                        // Show dynamic skills from database
+                        Object.entries(skillsBySubcategory).map(([subcategory, skills]) => (
+                          <div key={subcategory}>
+                            <div className="px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                              {subcategory}
+                            </div>
+                            {skills.filter(skill => !selectedSkills.includes(skill)).map((skill) => (
+                              <SelectItem key={skill} value={skill} className="pl-4">
+                                {skill}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        ))
+                      ) : (
+                        // Show ONLY selected role's skills
+                        (() => {
+                          let skillsToShow: string[] = [];
+                          
+                          // If specific role is selected, show ONLY that role's skills
+                          if (selectedRole?.name && skillsByRole[selectedRole.name as keyof typeof skillsByRole]) {
+                            skillsToShow = skillsByRole[selectedRole.name as keyof typeof skillsByRole];
+                          } else {
+                            // If no role selected, show empty or message
+                            return (
+                              <div className="p-4 text-center text-gray-500">
+                                Please select a specific role to see required skills
+                              </div>
+                            );
+                          }
+                          
+                          return skillsToShow.filter(skill => !selectedSkills.includes(skill)).map((skill) => (
+                            <SelectItem key={skill} value={skill}>
+                              {skill}
+                            </SelectItem>
+                          ));
+                        })()
+                      )}
                     </SelectContent>
                   </Select>
                   {selectedSkills.length > 0 && (

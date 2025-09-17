@@ -84,6 +84,12 @@ const WorkerJobs = () => {
         })));
         
         console.log('Worker profile category:', (profile as any)?.category);
+        console.log('Total tasks loaded:', data?.length || 0);
+        console.log('Tasks by role_category:', data?.reduce((acc, t) => {
+          const cat = (t as any).role_category || 'NULL';
+          acc[cat] = (acc[cat] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>));
         
         setTasks(data || []);
 
@@ -228,31 +234,54 @@ const WorkerJobs = () => {
 
   const filteredTasks = useMemo(() => {
     const q = searchQuery.toLowerCase();
+    const workerCategory = (profile as any)?.category;
     
-    return tasks.filter((task) => {
+    console.log('Filtering tasks:', {
+      totalTasks: tasks.length,
+      workerCategory,
+      workerRating,
+      searchQuery: q,
+      selectedCategory
+    });
+    
+    const filtered = tasks.filter((task) => {
       const matchesSearch = task.title?.toLowerCase().includes(q) || 
                            task.description?.toLowerCase().includes(q);
       const matchesCategory = selectedCategory === "all" || task.category === selectedCategory;
       const meetsRating = ((task as any).required_rating || 1.0) <= workerRating;
+      
       // Match worker category with task role_category
-      const workerCategory = (profile as any)?.category;
       const taskRoleCategory = (task as any).role_category;
       const matchesWorkerCategory = !workerCategory || !taskRoleCategory || 
                                    taskRoleCategory === 'General' || 
                                    workerCategory === taskRoleCategory;
-      
-      // Debug logging for category matching
-      if (task.title?.includes('IT') || task.title?.includes('Blockchain') || task.title?.includes('Developer')) {
-        console.log(`Task "${task.title}": role_category="${taskRoleCategory}", worker_category="${workerCategory}", matches=${matchesWorkerCategory}`);
-      }
       
       // Hide tasks that are full (unless worker is already assigned)
       const isTaskFull = (task as any).max_workers && (task as any).assigned_count >= (task as any).max_workers;
       const isWorkerAssigned = assignedTasks.has(task.id);
       const shouldShowFullTask = !isTaskFull || isWorkerAssigned;
       
-      return matchesSearch && matchesCategory && meetsRating && matchesWorkerCategory && shouldShowFullTask;
+      const passes = matchesSearch && matchesCategory && meetsRating && matchesWorkerCategory && shouldShowFullTask;
+      
+      // Debug logging for all tasks
+      if (task.title) {
+        console.log(`Task "${task.title}":`, {
+          role_category: taskRoleCategory,
+          required_rating: (task as any).required_rating,
+          matchesSearch,
+          matchesCategory,
+          meetsRating,
+          matchesWorkerCategory,
+          shouldShowFullTask,
+          passes
+        });
+      }
+      
+      return passes;
     });
+    
+    console.log(`Filtered ${filtered.length} tasks out of ${tasks.length}`);
+    return filtered;
   }, [tasks, searchQuery, selectedCategory, workerRating, profile, assignedTasks]);
 
   const getDifficultyColor = (difficulty: string) => {

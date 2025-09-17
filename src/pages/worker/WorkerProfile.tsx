@@ -77,11 +77,30 @@ const WorkerProfile = () => {
     ].filter(badge => badge.condition)
   };
 
-  const skillOptions = [
-    "Social Media", "Content Writing", "App Testing", "Surveys", 
-    "Data Entry", "Translation", "Voice Recording", "Product Reviews",
-    "Website Testing", "Email Marketing", "SEO", "Graphic Design"
-  ];
+  // Organized skills by categories
+  const skillsByCategory = {
+    "Frontend Development": ["HTML", "CSS", "JavaScript", "React.js", "UI/UX Basics"],
+    "Backend Development": ["Node.js", "Express.js", "Python", "Databases", "API Development"],
+    "Full Stack Development": ["React.js", "Node.js", "MongoDB", "REST APIs", "Version Control"],
+    "Mobile Development": ["Flutter", "React Native", "iOS", "Android", "App Store Deployment"],
+    "Database Administration": ["SQL", "Database Optimization", "Backups", "Security", "Performance Tuning"],
+    "Cloud & DevOps": ["AWS", "Azure", "CI/CD", "Docker", "Kubernetes"],
+    "SEO Specialist": ["Keyword Research", "On-page SEO", "Off-page SEO", "Technical SEO", "Content Optimization"],
+    "Content Marketing": ["Content Writing", "Copywriting", "Blog Management", "Storytelling", "Editing"],
+    "Social Media Management": ["Social Media Strategy", "Content Scheduling", "Analytics & Insights", "Community Engagement", "Paid Campaigns"],
+    "PPC Advertising": ["Google Ads", "Facebook Ads", "Campaign Optimization", "A/B Testing", "Conversion Tracking"],
+    "Email Marketing": ["Email Campaigns", "Automation Tools", "A/B Testing", "Copywriting", "List Segmentation"],
+    "Blockchain Development": ["Solidity", "Web3.js", "Ethereum", "Smart Contracts", "DeFi Protocols"],
+    "Smart Contract Auditing": ["Solidity", "Security Testing", "Gas Optimization", "MythX", "Slither"],
+    "Web3 Development": ["React.js", "Next.js", "Ethers.js", "IPFS", "Smart Contracts"],
+    "Crypto Analysis": ["Technical Analysis", "Fundamental Analysis", "On-chain Data", "Market Trends", "Risk Management"],
+    "Blockchain Architecture": ["Consensus Mechanisms", "System Design", "Node Management", "Scalability", "Security"],
+    "NFT/Token Development": ["ERC-20", "ERC-721", "ERC-1155", "Tokenomics", "Minting Contracts"],
+    "General Tasks": ["App Testing", "Surveys", "Data Entry", "Translation", "Voice Recording", "Product Reviews", "Website Testing"]
+  };
+
+  // Flatten all skills for the dropdown
+  const skillOptions = Object.values(skillsByCategory).flat();
 
   const languageOptions = [
     "English", "Spanish", "French", "German", "Italian", "Portuguese",
@@ -576,21 +595,28 @@ const WorkerProfile = () => {
                 <CardTitle>Skills & Preferences</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <Label>Skills</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {skillOptions.map((skill) => (
-                      <div key={skill} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={skill}
-                          checked={profileData.skills.includes(skill)}
-                          onCheckedChange={() => toggleSkill(skill)}
-                          disabled={!isEditing}
-                        />
-                        <Label htmlFor={skill} className="text-sm">{skill}</Label>
+                  {Object.entries(skillsByCategory).map(([category, skills]) => (
+                    <div key={category} className="space-y-2">
+                      <h4 className="text-sm font-semibold text-gray-600 border-b border-gray-200 pb-1">
+                        {category}
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pl-2">
+                        {skills.map((skill) => (
+                          <div key={skill} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={skill}
+                              checked={profileData.skills.includes(skill)}
+                              onCheckedChange={() => toggleSkill(skill)}
+                              disabled={!isEditing}
+                            />
+                            <Label htmlFor={skill} className="text-sm">{skill}</Label>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

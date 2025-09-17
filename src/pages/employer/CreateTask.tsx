@@ -31,6 +31,7 @@ import { formatINR } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSkillsByCategory } from '@/hooks/useSubcategories';
 
 interface Worker {
   user_id: string;
@@ -56,6 +57,7 @@ const CreateTask = () => {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [minRating, setMinRating] = useState<number>(1.0);
+  const [selectedRole, setSelectedRole] = useState<string>("");
 
   const [formData, setFormData] = useState({
     // Step 1: Task Details
@@ -94,16 +96,15 @@ const CreateTask = () => {
     startTime: "",
     endTime: ""
   });
+  
+  // Dynamic subcategory fetching based on selected category
+  const { skillsBySubcategory, allSkills, loading: skillsLoading, error: skillsError } = useSkillsByCategory(formData.category || '');
 
   const categories = [
-    "Social Media",
-    "App Testing", 
-    "Surveys",
-    "Data Entry",
-    "Content Creation",
-    "Website Testing",
-    "Reviews",
-    "Translation"
+    "IT",
+    "Digital Marketing", 
+    "Blockchain/AI",
+    "General"
   ];
 
   const roleCategories = [
@@ -139,11 +140,60 @@ const CreateTask = () => {
 
   const deviceTypes = ["Desktop", "Mobile", "Tablet"];
 
-  const skillOptions = [
-    "Social Media", "Content Writing", "App Testing", "Surveys", 
-    "Data Entry", "Translation", "Voice Recording", "Product Reviews",
-    "Website Testing", "Email Marketing", "SEO", "Graphic Design"
-  ];
+  // Organized skills by categories
+  const skillsByCategory = {
+    "Frontend Development": ["HTML", "CSS", "JavaScript", "React.js", "UI/UX Basics"],
+    "Backend Development": ["Node.js", "Express.js", "Python", "Databases", "API Development"],
+    "Full Stack Development": ["React.js", "Node.js", "MongoDB", "REST APIs", "Version Control"],
+    "Mobile Development": ["Flutter", "React Native", "iOS", "Android", "App Store Deployment"],
+    "Database Administration": ["SQL", "Database Optimization", "Backups", "Security", "Performance Tuning"],
+    "Cloud & DevOps": ["AWS", "Azure", "CI/CD", "Docker", "Kubernetes"],
+    "SEO Specialist": ["Keyword Research", "On-page SEO", "Off-page SEO", "Technical SEO", "Content Optimization"],
+    "Content Marketing": ["Content Writing", "Copywriting", "Blog Management", "Storytelling", "Editing"],
+    "Social Media Management": ["Social Media Strategy", "Content Scheduling", "Analytics & Insights", "Community Engagement", "Paid Campaigns"],
+    "PPC Advertising": ["Google Ads", "Facebook Ads", "Campaign Optimization", "A/B Testing", "Conversion Tracking"],
+    "Email Marketing": ["Email Campaigns", "Automation Tools", "A/B Testing", "Copywriting", "List Segmentation"],
+    "Blockchain Development": ["Solidity", "Web3.js", "Ethereum", "Smart Contracts", "DeFi Protocols"],
+    "Smart Contract Auditing": ["Solidity", "Security Testing", "Gas Optimization", "MythX", "Slither"],
+    "Web3 Development": ["React.js", "Next.js", "Ethers.js", "IPFS", "Smart Contracts"],
+    "Crypto Analysis": ["Technical Analysis", "Fundamental Analysis", "On-chain Data", "Market Trends", "Risk Management"],
+    "Blockchain Architecture": ["Consensus Mechanisms", "System Design", "Node Management", "Scalability", "Security"],
+    "NFT/Token Development": ["ERC-20", "ERC-721", "ERC-1155", "Tokenomics", "Minting Contracts"],
+    "General Tasks": ["App Testing", "Surveys", "Data Entry", "Translation", "Voice Recording", "Product Reviews", "Website Testing"]
+  };
+
+  // Role-specific skills mapping for precise skill selection
+  const skillsByRole = {
+    "Frontend Developer": ["HTML", "CSS", "JavaScript", "React.js", "UI/UX Basics"],
+    "Backend Developer": ["Node.js", "Express.js", "Python", "Databases", "API Development"],
+    "Full Stack Developer": ["React.js", "Node.js", "MongoDB", "REST APIs", "Version Control"],
+    "Mobile App Developer": ["Flutter", "React Native", "iOS", "Android", "App Store Deployment"],
+    "Database Administrator (DBA)": ["SQL", "Database Optimization", "Backups", "Security", "Performance Tuning"],
+    "Cloud Engineer / DevOps": ["AWS", "Azure", "CI/CD", "Docker", "Kubernetes"],
+    "SEO Specialist": ["Keyword Research", "On-page SEO", "Off-page SEO", "Technical SEO", "Content Optimization"],
+    "Content Writer / Copywriter": ["Content Writing", "Copywriting", "Blog Management", "Storytelling", "Editing"],
+    "Social Media Manager": ["Social Media Strategy", "Content Scheduling", "Analytics & Insights", "Community Engagement", "Paid Campaigns"],
+    "Performance Marketer (PPC/Ads)": ["Google Ads", "Facebook Ads", "Campaign Optimization", "A/B Testing", "Conversion Tracking"],
+    "Email Marketing Specialist": ["Email Campaigns", "Automation Tools", "A/B Testing", "Copywriting", "List Segmentation"],
+    "Blockchain Developer": ["Solidity", "Web3.js", "Ethereum", "Smart Contracts", "DeFi Protocols"],
+    "Smart Contract Auditor": ["Solidity", "Security Testing", "Gas Optimization", "MythX", "Slither"],
+    "Web3 Developer": ["React.js", "Next.js", "Ethers.js", "IPFS", "Smart Contracts"],
+    "Crypto Analyst": ["Technical Analysis", "Fundamental Analysis", "On-chain Data", "Market Trends", "Risk Management"],
+    "Blockchain Architect": ["Consensus Mechanisms", "System Design", "Node Management", "Scalability", "Security"],
+    "NFT/Token Developer": ["ERC-20", "ERC-721", "ERC-1155", "Tokenomics", "Minting Contracts"]
+  };
+
+  // Flatten all skills for the dropdown
+  const skillOptions = Object.values(skillsByCategory).flat();
+  
+  // Debug logging
+  console.log('Skills state:', {
+    category: formData.category,
+    skillsBySubcategory,
+    skillsLoading,
+    skillsError,
+    staticSkillsCount: Object.keys(skillsByCategory).length
+  });
 
   useEffect(() => {
     loadAvailableWorkers();
@@ -193,6 +243,13 @@ const CreateTask = () => {
 
   const handleInputChange = (field: string, value: any) => {
     console.log('Form input changed:', field, value);
+    
+    // Clear selected skills and role when category changes
+    if (field === 'category') {
+      setSelectedSkills([]);
+      setSelectedRole("");
+    }
+    
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       console.log('New form data:', newData);
@@ -379,6 +436,57 @@ const CreateTask = () => {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label>Specific Role</Label>
+                <Select value={selectedRole} onValueChange={(value) => {
+                  setSelectedRole(value);
+                  setSelectedSkills([]); // Clear skills when role changes
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select specific role (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.category === 'IT' && [
+                      "Frontend Developer",
+                      "Backend Developer", 
+                      "Full Stack Developer",
+                      "Mobile App Developer",
+                      "Database Administrator (DBA)",
+                      "Cloud Engineer / DevOps"
+                    ].map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                    {formData.category === 'Digital Marketing' && [
+                      "SEO Specialist",
+                      "Content Writer / Copywriter",
+                      "Social Media Manager", 
+                      "Performance Marketer (PPC/Ads)",
+                      "Email Marketing Specialist"
+                    ].map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                    {formData.category === 'Blockchain/AI' && [
+                      "Blockchain Developer",
+                      "Smart Contract Auditor",
+                      "Web3 Developer",
+                      "Crypto Analyst", 
+                      "Blockchain Architect",
+                      "NFT/Token Developer"
+                    ].map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label>Difficulty Level *</Label>
                 <Select value={formData.difficulty} onValueChange={(value) => handleInputChange('difficulty', value)}>
@@ -913,6 +1021,15 @@ const CreateTask = () => {
 
                 <div className="space-y-2">
                   <Label>Required Skills</Label>
+                  {(formData.category || selectedRole) && (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedRole ? (
+                        <>Showing skills for <strong>{selectedRole}</strong> role</>
+                      ) : (
+                        <>Showing skills for <strong>{formData.category}</strong> category</>
+                      )}
+                    </p>
+                  )}
                   <Select value="" onValueChange={(value) => {
                     if (value && !selectedSkills.includes(value)) {
                       setSelectedSkills(prev => [...prev, value]);
@@ -921,10 +1038,73 @@ const CreateTask = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Add skill filter" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {skillOptions.filter(skill => !selectedSkills.includes(skill)).map((skill) => (
-                        <SelectItem key={skill} value={skill}>{skill}</SelectItem>
-                      ))}
+                    <SelectContent className="max-h-80">
+                      {skillsLoading ? (
+                        <div className="p-4 text-center text-gray-500">
+                          Loading skills...
+                        </div>
+                      ) : Object.keys(skillsBySubcategory).length > 0 ? (
+                        // Show dynamic skills from database
+                        Object.entries(skillsBySubcategory).map(([subcategory, skills]) => (
+                          <div key={subcategory}>
+                            <div className="px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                              {subcategory}
+                            </div>
+                            {skills.filter(skill => !selectedSkills.includes(skill)).map((skill) => (
+                              <SelectItem key={skill} value={skill} className="pl-4">
+                                {skill}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        ))
+                      ) : (
+                        // Show role-specific skills if role selected, otherwise category skills
+                        (() => {
+                          let skillsToShow: string[] = [];
+                          
+                          // If specific role is selected, show only that role's skills
+                          if (selectedRole && skillsByRole[selectedRole as keyof typeof skillsByRole]) {
+                            skillsToShow = skillsByRole[selectedRole as keyof typeof skillsByRole];
+                          } 
+                          // Otherwise show category-specific skills
+                          else if (formData.category === 'IT') {
+                            skillsToShow = [
+                              ...skillsByCategory["Frontend Development"],
+                              ...skillsByCategory["Backend Development"],
+                              ...skillsByCategory["Full Stack Development"],
+                              ...skillsByCategory["Mobile Development"],
+                              ...skillsByCategory["Database Administration"],
+                              ...skillsByCategory["Cloud & DevOps"]
+                            ];
+                          } else if (formData.category === 'Digital Marketing') {
+                            skillsToShow = [
+                              ...skillsByCategory["SEO Specialist"],
+                              ...skillsByCategory["Content Marketing"],
+                              ...skillsByCategory["Social Media Management"],
+                              ...skillsByCategory["PPC Advertising"],
+                              ...skillsByCategory["Email Marketing"]
+                            ];
+                          } else if (formData.category === 'Blockchain/AI') {
+                            skillsToShow = [
+                              ...skillsByCategory["Blockchain Development"],
+                              ...skillsByCategory["Smart Contract Auditing"],
+                              ...skillsByCategory["Web3 Development"],
+                              ...skillsByCategory["Crypto Analysis"],
+                              ...skillsByCategory["Blockchain Architecture"],
+                              ...skillsByCategory["NFT/Token Development"]
+                            ];
+                          } else {
+                            // Show all skills for other categories
+                            skillsToShow = Object.values(skillsByCategory).flat();
+                          }
+                          
+                          return skillsToShow.filter(skill => !selectedSkills.includes(skill)).map((skill) => (
+                            <SelectItem key={skill} value={skill}>
+                              {skill}
+                            </SelectItem>
+                          ));
+                        })()
+                      )}
                     </SelectContent>
                   </Select>
                   {selectedSkills.length > 0 && (
