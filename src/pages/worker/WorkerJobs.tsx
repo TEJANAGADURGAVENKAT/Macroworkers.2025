@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,15 +20,22 @@ import {
   AlertCircle,
   TrendingUp,
   Award,
-  Zap
+  Zap,
+  UserPlus,
+  CheckCircle,
+  Loader2,
+  Play
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getEmployeeRatingSummary } from "@/lib/employee-ratings-api";
+import { useToast } from "@/hooks/use-toast";
 
 const WorkerJobs = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +43,8 @@ const WorkerJobs = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [workerRating, setWorkerRating] = useState<number>(1.0);
   const [showRatingInfo, setShowRatingInfo] = useState(false);
+  const [assigningTask, setAssigningTask] = useState<string | null>(null);
+  const [assignedTasks, setAssignedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -57,12 +66,29 @@ const WorkerJobs = () => {
         const { data, error } = await supabase
           .from("tasks")
           .select("*")
-          .gte("required_rating", ratingSummary?.average_rating || 1.0)
-          .eq("role_category", profile?.category) // Filter by worker's category
+          .eq("status", "active")
+          .lte("required_rating", ratingSummary?.average_rating || 1.0)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
+        
+        console.log('Tasks loaded with constraints:', data?.map(t => ({
+          id: t.id,
+          title: t.title,
+          role_category: (t as any).role_category,
+          required_rating: (t as any).required_rating,
+          assignment_start_time: (t as any).assignment_start_time,
+          assignment_end_time: (t as any).assignment_end_time,
+          max_workers: (t as any).max_workers,
+          assigned_count: (t as any).assigned_count
+        })));
+        
+        console.log('Worker profile category:', (profile as any)?.category);
+        
         setTasks(data || []);
+
+        // Load already assigned tasks
+        await loadAssignedTasks();
       } catch (e: any) {
         setLoadError(e?.message || "Failed to load tasks");
       } finally {
@@ -71,6 +97,128 @@ const WorkerJobs = () => {
     };
     loadTasks();
   }, [user, profile]);
+
+  const loadAssignedTasks = async () => {
+    if (!user) return;
+    
+    try {
+      // Load from both task_assignments and task_submissions for transition
+      const [assignmentsResult, submissionsResult] = await Promise.all([
+        supabase
+          .from('task_assignments')
+          .select('task_id')
+          .eq('worker_id', user.id),
+        supabase
+          .from('task_submissions')
+          .select('task_id')
+          .eq('worker_id', user.id)
+          .eq('status', 'assigned')
+      ]);
+
+      const assignmentTaskIds = assignmentsResult.data?.map(item => item.task_id) || [];
+      const submissionTaskIds = submissionsResult.data?.map(item => item.task_id) || [];
+      
+      // Combine both sources
+      const allAssignedTaskIds = new Set([...assignmentTaskIds, ...submissionTaskIds]);
+      setAssignedTasks(allAssignedTaskIds);
+      
+      console.log('Loaded assigned tasks from both sources:', allAssignedTaskIds);
+    } catch (err: any) {
+      console.error('Error loading assigned tasks:', err);
+    }
+  };
+
+  const handleAssignTask = async (taskId: string) => {
+    if (!user) return;
+    
+    setAssigningTask(taskId);
+    
+    try {
+      // Check if already assigned
+      if (assignedTasks.has(taskId)) {
+        toast({
+          title: "Already Assigned",
+          description: "You have already assigned yourself to this task.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get task details to check constraints
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        throw new Error("Task not found");
+      }
+
+      // Check assignment time window
+      if (task.assignment_start_time && task.assignment_end_time) {
+        const now = new Date();
+        const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+        
+        if (currentTime < task.assignment_start_time || currentTime > task.assignment_end_time) {
+          toast({
+            title: "Assignment Window Closed",
+            description: `Task assignments are only allowed between ${task.assignment_start_time} and ${task.assignment_end_time}.`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      // Check worker limit
+      if (task.max_workers && task.assigned_count >= task.max_workers) {
+        toast({
+          title: "Assignment Limit Reached",
+          description: `This task has reached its maximum limit of ${task.max_workers} workers.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create task assignment in both tables for compatibility
+      console.log('Creating assignment with data:', {
+        task_id: taskId,
+        worker_id: user.id,
+        status: 'assigned'
+      });
+
+      // Create in task_assignments table (new system)
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('task_assignments')
+        .insert({
+          task_id: taskId,
+          worker_id: user.id,
+          status: 'assigned'
+        })
+        .select()
+        .single();
+
+      console.log('Assignment creation result:', { data: assignmentData, error: assignmentError });
+
+      if (assignmentError) throw assignmentError;
+
+      // Update local state
+      setAssignedTasks(prev => new Set([...prev, taskId]));
+
+      toast({
+        title: "Task Assigned Successfully",
+        description: "You have successfully assigned yourself to this task. Check your tasks page to view it.",
+      });
+
+      // Navigate to tasks page
+      navigate('/worker/tasks');
+      
+    } catch (err: any) {
+      console.error('Error assigning task:', err);
+      toast({
+        title: "Assignment Failed",
+        description: err?.message || "Failed to assign task. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAssigningTask(null);
+    }
+  };
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -85,11 +233,27 @@ const WorkerJobs = () => {
       const matchesSearch = task.title?.toLowerCase().includes(q) || 
                            task.description?.toLowerCase().includes(q);
       const matchesCategory = selectedCategory === "all" || task.category === selectedCategory;
-      const meetsRating = (task.required_rating || 1.0) <= workerRating;
+      const meetsRating = ((task as any).required_rating || 1.0) <= workerRating;
+      // Match worker category with task role_category
+      const workerCategory = (profile as any)?.category;
+      const taskRoleCategory = (task as any).role_category;
+      const matchesWorkerCategory = !workerCategory || !taskRoleCategory || 
+                                   taskRoleCategory === 'General' || 
+                                   workerCategory === taskRoleCategory;
       
-      return matchesSearch && matchesCategory && meetsRating;
+      // Debug logging for category matching
+      if (task.title?.includes('IT') || task.title?.includes('Blockchain') || task.title?.includes('Developer')) {
+        console.log(`Task "${task.title}": role_category="${taskRoleCategory}", worker_category="${workerCategory}", matches=${matchesWorkerCategory}`);
+      }
+      
+      // Hide tasks that are full (unless worker is already assigned)
+      const isTaskFull = (task as any).max_workers && (task as any).assigned_count >= (task as any).max_workers;
+      const isWorkerAssigned = assignedTasks.has(task.id);
+      const shouldShowFullTask = !isTaskFull || isWorkerAssigned;
+      
+      return matchesSearch && matchesCategory && meetsRating && matchesWorkerCategory && shouldShowFullTask;
     });
-  }, [tasks, searchQuery, selectedCategory, workerRating]);
+  }, [tasks, searchQuery, selectedCategory, workerRating, profile, assignedTasks]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty?.toLowerCase()) {
@@ -180,7 +344,27 @@ const WorkerJobs = () => {
   };
 
   const canAccessTask = (task: any) => {
-    return (task.required_rating || 1.0) <= workerRating;
+    // Check rating requirement
+    if ((task.required_rating || 1.0) > workerRating) {
+      return false;
+    }
+
+    // Check assignment time window
+    if (task.assignment_start_time && task.assignment_end_time) {
+      const now = new Date();
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+      
+      if (currentTime < task.assignment_start_time || currentTime > task.assignment_end_time) {
+        return false;
+      }
+    }
+
+    // Check worker limit
+    if (task.max_workers && task.assigned_count >= task.max_workers) {
+      return false;
+    }
+
+    return true;
   };
 
   const renderStars = (rating: number) => {
@@ -229,7 +413,7 @@ const WorkerJobs = () => {
                 <div>
                   <p className="font-medium">Your Current Rating</p>
                   <p className="text-sm text-muted-foreground">
-                    {profile?.total_tasks_completed || 0} tasks completed
+                    {(profile as any)?.total_tasks_completed || 0} tasks completed
                   </p>
                 </div>
               </div>
@@ -470,6 +654,30 @@ const WorkerJobs = () => {
                         </span>
                       </div>
 
+                      {/* Assignment Constraints */}
+                      {(task.assignment_start_time && task.assignment_end_time) && (
+                        <div className="flex items-center space-x-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                          <Clock className="h-4 w-4 text-green-600" />
+                          <span className="text-sm text-green-800">
+                            Assignment window: {task.assignment_start_time} - {task.assignment_end_time}
+                          </span>
+                        </div>
+                      )}
+
+                      {task.max_workers && (
+                        <div className="flex items-center space-x-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
+                          <Users className="h-4 w-4 text-purple-600" />
+                          <span className="text-sm text-purple-800">
+                            Slots left: {(task.max_workers || 0) - (task.assigned_count || 0)} of {task.max_workers}
+                          </span>
+                          {task.assigned_count >= task.max_workers && (
+                            <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">
+                              Full
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
                       {!canAccessTask(task) && (
                         <div className="flex items-center space-x-2 p-2 bg-red-50 rounded-lg border border-red-200">
                           <AlertCircle className="h-4 w-4 text-red-600" />
@@ -480,7 +688,7 @@ const WorkerJobs = () => {
                       )}
                     </div>
 
-                    <div className="flex flex-col space-y-2 md:w-32">
+                    <div className="flex flex-col space-y-2 md:w-40">
                       <Button 
                         className="w-full" 
                         disabled={!canAccessTask(task)}
@@ -490,6 +698,42 @@ const WorkerJobs = () => {
                           {canAccessTask(task) ? "View Details" : "Rating Too Low"}
                         </Link>
                       </Button>
+                      
+                      {canAccessTask(task) && (
+                        assignedTasks.has(task.id) ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full"
+                            asChild
+                          >
+                            <Link to={`/worker/task/${task.id}`}>
+                              <Play className="h-4 w-4 mr-2" />
+                              Work on Task
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            disabled={assigningTask === task.id}
+                            onClick={() => handleAssignTask(task.id)}
+                          >
+                            {assigningTask === task.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Assigning...
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Assign Task
+                              </>
+                            )}
+                          </Button>
+                        )
+                      )}
                       
                       {task.requirements && (
                         <p className="text-xs text-muted-foreground text-center">

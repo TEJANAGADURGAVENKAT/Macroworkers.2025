@@ -47,6 +47,51 @@ export type Database = {
         }
         Relationships: []
       }
+      task_assignments: {
+        Row: {
+          id: string
+          task_id: string
+          worker_id: string
+          status: string
+          assigned_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          worker_id: string
+          status?: string
+          assigned_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          worker_id?: string
+          status?: string
+          assigned_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       task_submissions: {
         Row: {
           id: string
@@ -116,6 +161,10 @@ export type Database = {
           status: string | null
           title: string
           updated_at: string | null
+          max_workers: number | null
+          assigned_count: number | null
+          assignment_start_time: string | null
+          assignment_end_time: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -132,6 +181,10 @@ export type Database = {
           status?: string | null
           title: string
           updated_at?: string | null
+          max_workers?: number | null
+          assigned_count?: number | null
+          assignment_start_time?: string | null
+          assignment_end_time?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -148,6 +201,10 @@ export type Database = {
           status?: string | null
           title?: string
           updated_at?: string | null
+          max_workers?: number | null
+          assigned_count?: number | null
+          assignment_start_time?: string | null
+          assignment_end_time?: string | null
         }
         Relationships: [
           {

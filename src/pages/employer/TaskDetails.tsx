@@ -33,6 +33,19 @@ interface Task {
   target_countries: string[];
   requirements: string;
   deadline: string;
+  max_workers?: number;
+  assigned_count?: number;
+}
+
+interface AssignedWorker {
+  id: string;
+  worker_id: string;
+  status: string;
+  assigned_at: string;
+  full_name: string;
+  email: string;
+  rating: number;
+  total_tasks_completed: number;
 }
 
 interface Submission {
@@ -69,6 +82,7 @@ const TaskDetails = () => {
   const { toast } = useToast();
   const [task, setTask] = useState<Task | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [assignedWorkers, setAssignedWorkers] = useState<AssignedWorker[]>([]);
   const [stats, setStats] = useState<TaskStats>({
     totalViews: 0,
     totalSubmissions: 0,
@@ -100,6 +114,11 @@ const TaskDetails = () => {
         .single();
 
       if (taskError) throw taskError;
+      
+      console.log('Loaded task data:', taskData);
+      console.log('Task max_workers:', taskData?.max_workers);
+      console.log('Task assigned_count:', taskData?.assigned_count);
+      
       setTask(taskData);
 
       // Load submissions for this task (without join to avoid relationship ambiguity)
@@ -155,6 +174,48 @@ const TaskDetails = () => {
       );
 
       setSubmissions(submissionsWithNames);
+
+      // Load assigned workers from task_assignments table
+      console.log('Loading assignments for task ID:', id);
+      
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('task_assignments')
+        .select('*')
+        .eq('task_id', id);
+
+      console.log('Assignments query result:', { data: assignmentsData, error: assignmentsError });
+
+      if (!assignmentsError && assignmentsData && assignmentsData.length > 0) {
+        // Fetch worker profiles separately
+        const workerIds = assignmentsData.map(a => a.worker_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email, rating, total_tasks_completed')
+          .in('user_id', workerIds);
+
+        console.log('Profiles query result:', { data: profilesData, error: profilesError });
+
+        const workersWithDetails = assignmentsData.map(assignment => {
+          const profile = profilesData?.find(p => p.user_id === assignment.worker_id);
+          
+          return {
+            id: assignment.id,
+            worker_id: assignment.worker_id,
+            status: assignment.status,
+            assigned_at: assignment.assigned_at,
+            full_name: profile?.full_name || 'Unknown Worker',
+            email: profile?.email || 'No email',
+            rating: profile?.rating || 1.0,
+            total_tasks_completed: profile?.total_tasks_completed || 0
+          };
+        });
+        
+        setAssignedWorkers(workersWithDetails);
+        console.log('Loaded assigned workers:', workersWithDetails);
+      } else {
+        console.log('No assignments found or error:', assignmentsError);
+        setAssignedWorkers([]);
+      }
 
       // Load task view statistics
       const { data: viewsData, error: viewsError } = await supabase
@@ -422,6 +483,69 @@ const TaskDetails = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Assigned Workers Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Assigned Workers ({assignedWorkers.length}{task?.max_workers ? `/${task.max_workers}` : ''})
+            </CardTitle>
+            {task?.max_workers && (
+              <p className="text-sm text-muted-foreground">
+                Slots available: {(task.max_workers - (task.assigned_count || 0))} of {task.max_workers}
+              </p>
+            )}
+          </CardHeader>
+          <CardContent>
+            {assignedWorkers.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">No workers have assigned themselves to this task yet.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Workers will appear here when they assign themselves from the Browse Jobs page.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {assignedWorkers.map((worker) => (
+                  <div key={worker.id} className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="font-medium text-lg">{worker.full_name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            ⭐ {worker.rating.toFixed(1)}
+                          </Badge>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs ${
+                              worker.status === 'assigned' ? 'bg-blue-100 text-blue-800' :
+                              worker.status === 'working' ? 'bg-yellow-100 text-yellow-800' :
+                              worker.status === 'submitted' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {worker.status}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          <p>📧 {worker.email}</p>
+                          <p>📊 {worker.total_tasks_completed} tasks completed</p>
+                          <p>📅 Assigned {formatTimeAgo(worker.assigned_at)}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Profile
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
                  {/* Submissions */}
          <Card>

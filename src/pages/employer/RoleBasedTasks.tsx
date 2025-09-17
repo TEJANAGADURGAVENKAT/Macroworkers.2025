@@ -93,6 +93,7 @@ interface TaskFormData {
   duration: string;
   autoApproval: boolean;
   deadline: string;
+  maxSlots: string;
 }
 
 const categories: Category[] = [
@@ -193,7 +194,8 @@ const RoleBasedTasks = () => {
     budget: '',
     duration: '',
     autoApproval: false,
-    deadline: ''
+    deadline: '',
+    maxSlots: '1'
   });
 
   const [timeSlotData, setTimeSlotData] = useState({
@@ -378,8 +380,8 @@ const RoleBasedTasks = () => {
 
   const calculateBudget = () => {
     const payment = parseFloat(formData.paymentPerTask) || 0;
-    const workerCount = selectedWorkers.length;
-    return payment * workerCount;
+    const maxSlots = Number(formData.maxSlots) || 1;
+    return payment * maxSlots;
   };
 
   const getRatingDescription = (rating: string) => {
@@ -399,48 +401,61 @@ const RoleBasedTasks = () => {
       return;
     }
 
-    if (selectedWorkers.length === 0) {
-      toast({ title: "No workers selected", description: "Please select at least one worker for this task.", variant: "destructive" });
+    // No need to check for selected workers since it's auto-assignment
+    if (!formData.maxSlots || Number(formData.maxSlots) < 1) {
+      toast({ title: "Invalid max slots", description: "Please set a valid number of maximum slots for this task.", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Create task data matching your database schema
       const taskData = {
         title: formData.title,
         description: formData.description,
         category: formData.category,
         difficulty: formData.difficulty || 'medium',
         requirements: formData.requirements.filter(Boolean).join(", "),
-        slots: selectedWorkers.length,
         budget: Number(formData.paymentPerTask) || 0,
         status: "active",
-        created_by: user.id,
-        required_rating: Number(formData.requiredRating),
-        is_time_sensitive: formData.isTimeSensitive,
-        time_slot_date: formData.isTimeSensitive && timeSlotData.date ? timeSlotData.date : null,
-        time_slot_start: formData.isTimeSensitive && timeSlotData.startTime ? timeSlotData.startTime : null,
-        time_slot_end: formData.isTimeSensitive && timeSlotData.endTime ? timeSlotData.endTime : null,
-        selected_workers: selectedWorkers.map(w => w.user_id),
-        total_budget: (Number(formData.paymentPerTask) || 0) * selectedWorkers.length,
-        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
-        role_specific: selectedRole?.name,
-        role_category: selectedCategory?.name
+        created_by: user.id, // This should match auth.users.id
+        user_id: user.id, // Required field with auth.uid() default
+        required_rating: Number(formData.requiredRating) || 1.0,
+        max_workers: Number(formData.maxSlots) || 1,
+        assigned_count: 0,
+        role_category: selectedCategory?.name === 'IT Department' ? 'IT' : 
+                      selectedCategory?.name === 'Digital Marketing' ? 'Digital Marketing' :
+                      selectedCategory?.name === 'Blockchain' ? 'Blockchain/AI' :
+                      'General',
+        slots: Number(formData.maxSlots) || 1,
+        completed_slots: 0
       };
 
       console.log('Creating task with data:', taskData);
+      console.log('User ID:', user.id);
+      console.log('Profile ID:', profile?.id);
       
       let { data, error } = await supabase.from("tasks").insert(taskData);
       
+      console.log('Task creation result:', { data, error });
+      
       if (error) {
-        if (String(error.message || "").includes("tasks_created_by_fkey")) {
-          const createdBy = profile?.id;
-          if (!createdBy) throw error;
-          const retry = await supabase.from("tasks").insert({
-            ...taskData,
-            created_by: createdBy,
-          });
-          if (retry.error) throw retry.error;
+        console.error('Task creation error details:', error);
+        
+        // Try with profile.user_id if there's a foreign key constraint error
+        if (String(error.message || "").includes("fkey") || String(error.message || "").includes("constraint")) {
+          console.log('Trying alternative approach...');
+          
+          // Try without user_id field (let it use default auth.uid())
+          const { user_id, ...taskDataWithoutUserId } = taskData;
+          
+          const retry = await supabase.from("tasks").insert(taskDataWithoutUserId);
+          console.log('Retry without user_id result:', retry);
+          
+          if (retry.error) {
+            console.error('Retry also failed:', retry.error);
+            throw retry.error;
+          }
         } else {
           throw error;
         }
@@ -448,7 +463,7 @@ const RoleBasedTasks = () => {
 
       toast({
         title: "Task created successfully!",
-        description: `Your ${formData.requiredRating}-star ${selectedRole?.name} task has been assigned to ${selectedWorkers.length} selected worker(s).`,
+        description: `Your ${formData.requiredRating}-star ${selectedRole?.name} task is now available for workers to assign themselves. Max slots: ${formData.maxSlots}`,
       });
       
       // Reset form and close dialog
@@ -813,7 +828,7 @@ const RoleBasedTasks = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="paymentPerTask">Payment per Task *</Label>
                 <div className="relative">
@@ -830,6 +845,25 @@ const RoleBasedTasks = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxSlots">Max Slots *</Label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    id="maxSlots"
+                    type="number"
+                    min="1"
+                    max="100"
+                    placeholder="1"
+                    className="pl-10"
+                    value={formData.maxSlots}
+                    onChange={(e) => handleInputChange('maxSlots', e.target.value)}
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Maximum workers who can assign to this task</p>
               </div>
 
               <div className="space-y-2">
@@ -1021,8 +1055,8 @@ const RoleBasedTasks = () => {
                   ) : (
                     <div className="divide-y">
                       {filteredWorkers.map((worker) => (
-                        <div key={worker.user_id} className="p-3 hover:bg-muted/50">
-                          <div className="flex items-center justify-between">
+                        <div key={worker.user_id} className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+                          <div className="flex items-center">
                             <div className="flex-1">
                               <div className="flex items-center space-x-2">
                                 <span className="font-medium">{worker.full_name}</span>
@@ -1032,6 +1066,9 @@ const RoleBasedTasks = () => {
                                 </div>
                                 <Badge variant="outline" className="text-xs">
                                   {worker.total_tasks_completed} tasks
+                                </Badge>
+                                <Badge className="bg-green-100 text-green-800 text-xs">
+                                  Can Assign
                                 </Badge>
                               </div>
                               <div className="flex flex-wrap gap-1 mt-1">
@@ -1046,16 +1083,10 @@ const RoleBasedTasks = () => {
                                   </Badge>
                                 )}
                               </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                This worker will be able to assign themselves to this task
+                              </p>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => addWorker(worker)}
-                              disabled={selectedWorkers.some(w => w.user_id === worker.user_id)}
-                            >
-                              <UserPlus className="h-3 w-3 mr-1" />
-                              {selectedWorkers.some(w => w.user_id === worker.user_id) ? 'Selected' : 'Select'}
-                            </Button>
                           </div>
                         </div>
                       ))}
@@ -1064,8 +1095,31 @@ const RoleBasedTasks = () => {
                 </div>
               </div>
 
-              {/* Selected Workers */}
-              {selectedWorkers.length > 0 && (
+              {/* Available Workers Info */}
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <Users className="h-4 w-4 text-green-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-green-900">Auto-Assignment System</h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        Workers shown above can assign themselves to this task. 
+                        They will see this task in their Browse Jobs page and can assign themselves up to the slot limit.
+                      </p>
+                      <div className="mt-2 text-xs text-green-600">
+                        <strong>Available Workers:</strong> {filteredWorkers.length} workers match your criteria
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Old Selected Workers Section - Remove this */}
+              {false && selectedWorkers.length > 0 && (
                 <div className="space-y-3">
                   <Label>Selected Workers ({selectedWorkers.length})</Label>
                   <div className="space-y-2">
@@ -1133,8 +1187,12 @@ const RoleBasedTasks = () => {
                   <span className="font-semibold">{formatINR(parseFloat(formData.paymentPerTask || '0'))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Selected workers:</span>
-                  <span className="font-semibold">{selectedWorkers.length}</span>
+                  <span>Max worker slots:</span>
+                  <span className="font-semibold">{formData.maxSlots}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Available workers:</span>
+                  <span className="font-semibold">{filteredWorkers.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Platform fee (5%):</span>
@@ -1339,7 +1397,7 @@ const RoleBasedTasks = () => {
                   <Button
                     onClick={handleSubmit}
                     className="bg-gradient-primary"
-                    disabled={isSubmitting || !formData.paymentPerTask || selectedWorkers.length === 0 || !formData.duration}
+                    disabled={isSubmitting || !formData.paymentPerTask || !formData.maxSlots || !formData.duration}
                   >
                     {isSubmitting ? "Creating..." : "Create Campaign"}
                     <CheckCircle className="h-4 w-4 ml-2" />

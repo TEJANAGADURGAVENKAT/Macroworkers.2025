@@ -54,6 +54,22 @@ interface Task {
   completed_slots?: number;
   submission_count?: { count: number }[];
   employer_name?: string;
+  max_assignees?: number;
+  current_assignees?: number;
+  assignment_start_time?: string;
+  assignment_end_time?: string;
+  assigned_workers?: WorkerDetail[];
+}
+
+interface WorkerDetail {
+  user_id: string;
+  full_name: string;
+  rating: number;
+  total_tasks_completed: number;
+  status: 'assigned' | 'pending' | 'approved' | 'rejected';
+  assigned_at: string;
+  proof_text?: string;
+  proof_files?: string[];
 }
 
 interface Submission {
@@ -117,12 +133,21 @@ const EmployerDashboard = () => {
     try {
       console.log('Loading dashboard data for user:', user.id);
       
-      // Load tasks
+      // Load tasks with new assignment limit fields
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
+      
+      console.log('Tasks loaded with assignment data:', tasksData?.map(t => ({
+        id: t.id,
+        title: t.title,
+        assignment_start_time: t.assignment_start_time,
+        assignment_end_time: t.assignment_end_time,
+        max_workers: t.max_workers,
+        assigned_count: t.assigned_count
+      })));
 
       if (tasksError) {
         console.error('Tasks query error:', tasksError);
@@ -241,7 +266,55 @@ const EmployerDashboard = () => {
         completionRate
       });
 
-      setTasks(tasksData || []);
+      // Load assigned worker details for each task
+      const tasksWithWorkers = await Promise.all(
+        (tasksData || []).map(async (task) => {
+          try {
+            // Get all assignments for this task from task_assignments table
+            const { data: taskAssignments, error: assignmentError } = await supabase
+              .from('task_assignments')
+              .select(`
+                *,
+                profiles!inner(user_id, full_name, email, rating, total_tasks_completed)
+              `)
+              .eq('task_id', task.id);
+              
+            console.log(`Assignments for task ${task.title}:`, taskAssignments);
+            console.log(`Assignment query error:`, assignmentError);
+            
+            if (taskAssignments && taskAssignments.length > 0) {
+              // Get detailed worker info
+              const assignedWorkers = taskAssignments.map((assignment) => {
+                const workerProfile = assignment.profiles;
+                
+                return {
+                  user_id: assignment.worker_id,
+                  full_name: workerProfile?.full_name || `Worker ${assignment.worker_id.substring(0, 8)}`,
+                  email: workerProfile?.email || 'No email',
+                  rating: workerProfile?.rating || 1.0,
+                  total_tasks_completed: workerProfile?.total_tasks_completed || 0,
+                  status: assignment.status,
+                  assigned_at: assignment.assigned_at
+                };
+              });
+              
+              console.log(`Assigned workers for task ${task.title}:`, assignedWorkers);
+
+              return {
+                ...task,
+                assigned_workers: assignedWorkers
+              };
+            }
+
+            return task;
+          } catch (error) {
+            console.error(`Error loading workers for task ${task.id}:`, error);
+            return task;
+          }
+        })
+      );
+
+      setTasks(tasksWithWorkers || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -613,11 +686,68 @@ const EmployerDashboard = () => {
                                 <p className="text-sm text-muted-foreground">
                                   Budget: {formatINR(campaign.budget)} • Created by: {displayName}
                                 </p>
+                                {campaign.assigned_workers && campaign.assigned_workers.length > 0 && (
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    {campaign.assigned_workers.length} worker{campaign.assigned_workers.length > 1 ? 's' : ''} assigned
+                                  </p>
+                                )}
+                                {/* Show assignment constraints and counts */}
+                                <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                                  {campaign.assignment_start_time && campaign.assignment_end_time && (
+                                    <div>🕒 Assignment: {campaign.assignment_start_time} - {campaign.assignment_end_time}</div>
+                                  )}
+                                  {campaign.max_workers && (
+                                    <div>👥 Assigned: {campaign.assigned_count || 0}/{campaign.max_workers} workers</div>
+                                  )}
+                                </div>
                               </div>
                               <Badge className={getStatusColor(campaign.status)}>
                                 {campaign.status}
                               </Badge>
                             </div>
+
+                            {/* Assigned Workers Details */}
+                            {campaign.assigned_workers && campaign.assigned_workers.length > 0 && (
+                              <div className="bg-blue-50 rounded-lg p-3 space-y-2">
+                                <h5 className="text-sm font-medium text-blue-900">Assigned Workers:</h5>
+                                <div className="space-y-2">
+                                  {campaign.assigned_workers.map((worker) => (
+                                    <div key={worker.user_id} className="flex items-center justify-between bg-white rounded p-2">
+                                      <div className="flex-1">
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-sm font-medium">{worker.full_name}</span>
+                                          <Badge variant="outline" className="text-xs">
+                                            ⭐ {worker.rating.toFixed(1)}
+                                          </Badge>
+                                          <Badge 
+                                            variant="secondary" 
+                                            className={`text-xs ${
+                                              worker.status === 'assigned' ? 'bg-blue-100 text-blue-800' :
+                                              worker.status === 'working' ? 'bg-yellow-100 text-yellow-800' :
+                                              worker.status === 'submitted' ? 'bg-green-100 text-green-800' :
+                                              'bg-gray-100 text-gray-800'
+                                            }`}
+                                          >
+                                            {worker.status}
+                                          </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          📧 {worker.email}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {worker.total_tasks_completed} tasks completed • Assigned {formatTimeAgo(worker.assigned_at)}
+                                        </p>
+                                        {worker.proof_text && worker.status !== 'assigned' && (
+                                          <p className="text-xs text-slate-600 mt-1 line-clamp-1">
+                                            Proof: {worker.proof_text}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             
                                                          <div className="space-y-2">
                                <div className="flex justify-between text-sm">

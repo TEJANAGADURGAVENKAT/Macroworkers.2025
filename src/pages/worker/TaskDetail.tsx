@@ -39,34 +39,66 @@ const TaskDetail = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+  const [isAssigned, setIsAssigned] = useState(false);
+  const [existingSubmission, setExistingSubmission] = useState<any | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      if (!id) return;
+      if (!id || !user) return;
       setLoading(true);
       setLoadError(null);
       try {
-        const { data, error } = await supabase
+        // Load task details
+        const { data: taskData, error: taskError } = await supabase
           .from('tasks')
           .select('*')
           .eq('id', id)
           .single();
-        if (error) throw error;
-        setTask(data);
+        if (taskError) throw taskError;
+        setTask(taskData);
+
+        // Check if user has assigned themselves to this task
+        const { data: assignmentData, error: assignmentError } = await supabase
+          .from('task_submissions')
+          .select('*')
+          .eq('task_id', id)
+          .eq('worker_id', user.id)
+          .eq('status', 'assigned')
+          .single();
+
+        if (!assignmentError && assignmentData) {
+          setIsAssigned(true);
+          setExistingSubmission(assignmentData);
+        }
+
+        // Check for existing submissions (pending, approved, rejected)
+        const { data: submissionData, error: submissionError } = await supabase
+          .from('task_submissions')
+          .select('*')
+          .eq('task_id', id)
+          .eq('worker_id', user.id)
+          .in('status', ['pending', 'approved', 'rejected'])
+          .single();
+
+        if (!submissionError && submissionData) {
+          setExistingSubmission(submissionData);
+          // Pre-fill form with existing submission data
+          if (submissionData.proof_text) {
+            setProofText(submissionData.proof_text);
+          }
+        }
 
         // Track task view
-        if (user) {
-          try {
-            await supabase
-              .from('task_views')
-              .insert({
-                task_id: id,
-                viewer_id: user.id,
-                user_agent: navigator.userAgent
-              });
-          } catch (viewError) {
-            console.error('Failed to track task view:', viewError);
-          }
+        try {
+          await supabase
+            .from('task_views')
+            .insert({
+              task_id: id,
+              viewer_id: user.id,
+              user_agent: navigator.userAgent
+            });
+        } catch (viewError) {
+          console.error('Failed to track task view:', viewError);
         }
       } catch (e: any) {
         setLoadError(e?.message || 'Failed to load task');
@@ -167,30 +199,52 @@ const TaskDetail = () => {
         }
       }
 
-      // Create the task submission
-      const { data: submission, error } = await supabase
-        .from('task_submissions')
-        .insert({
-          task_id: task.id,
-          worker_id: user.id,
-          employer_id: task.created_by, // Set employer_id manually
-          proof_text: proofText.trim() || null,
-          proof_files: uploadedFiles.length > 0 ? uploadedFiles : null,
-          proof_type: uploadedFiles.length > 0 && proofText.trim() ? 'both' : 
-                     uploadedFiles.length > 0 ? 'file' : 'text', // Set proof_type manually
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Submission error:', error);
-        throw error;
+      let submission;
+      
+      if (isAssigned && existingSubmission) {
+        // Update existing assignment to submission
+        const { data: updatedSubmission, error: updateError } = await supabase
+          .from('task_submissions')
+          .update({
+            proof_text: proofText.trim() || null,
+            proof_files: uploadedFiles.length > 0 ? uploadedFiles : null,
+            proof_type: uploadedFiles.length > 0 && proofText.trim() ? 'both' : 
+                       uploadedFiles.length > 0 ? 'file' : 'text',
+            status: 'pending',
+            submitted_at: new Date().toISOString()
+          })
+          .eq('id', existingSubmission.id)
+          .select()
+          .single();
+        
+        if (updateError) throw updateError;
+        submission = updatedSubmission;
+      } else {
+        // Create new submission
+        const { data: newSubmission, error: insertError } = await supabase
+          .from('task_submissions')
+          .insert({
+            task_id: task.id,
+            worker_id: user.id,
+            employer_id: task.created_by,
+            proof_text: proofText.trim() || null,
+            proof_files: uploadedFiles.length > 0 ? uploadedFiles : null,
+            proof_type: uploadedFiles.length > 0 && proofText.trim() ? 'both' : 
+                       uploadedFiles.length > 0 ? 'file' : 'text',
+            status: 'pending'
+          })
+          .select()
+          .single();
+        
+        if (insertError) throw insertError;
+        submission = newSubmission;
       }
 
+      // Error handling is done in the individual operations above
+
       toast({
-        title: "Task submitted successfully!",
-        description: "Your task submission is under review. You'll be notified once approved.",
+        title: isAssigned ? "Work submitted successfully!" : "Task submitted successfully!",
+        description: "Your submission is under review. You'll be notified once approved.",
       });
 
       // Navigate back to worker tasks page
@@ -226,6 +280,50 @@ const TaskDetail = () => {
             </>
           )}
         </div>
+
+        {/* Assignment Status */}
+        {isAssigned && (
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="font-semibold text-lg">You assigned yourself to this task</span>
+                </div>
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                  Assigned
+                </Badge>
+              </div>
+              <p className="text-sm text-blue-800 mt-2">
+                You can now work on this task and submit your proof when ready.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Existing Submission Status */}
+        {existingSubmission && existingSubmission.status !== 'assigned' && (
+          <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <span className="font-semibold text-lg">Submission Status</span>
+                </div>
+                <Badge className={existingSubmission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                 existingSubmission.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                                 'bg-red-100 text-red-800'}>
+                  {existingSubmission.status.charAt(0).toUpperCase() + existingSubmission.status.slice(1)}
+                </Badge>
+              </div>
+              <p className="text-sm text-yellow-800 mt-2">
+                {existingSubmission.status === 'pending' && "Your submission is under review."}
+                {existingSubmission.status === 'approved' && "Your submission has been approved!"}
+                {existingSubmission.status === 'rejected' && "Your submission was rejected. Please review the feedback."}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Task Details */}
@@ -302,7 +400,14 @@ const TaskDetail = () => {
             {/* Submit Proof Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Submit Your Work</CardTitle>
+                <CardTitle>
+                  {isAssigned ? "Submit Your Work" : "Submit Task for Review"}
+                </CardTitle>
+                {isAssigned && (
+                  <p className="text-sm text-muted-foreground">
+                    You have assigned yourself to this task. Complete the work and submit your proof.
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -364,14 +469,25 @@ const TaskDetail = () => {
                   )}
                 </div>
 
-                <Button 
-                  onClick={handleSubmit}
-                  className="w-full bg-gradient-primary"
-                  size="lg"
-                  disabled={submitting}
-                >
-                  {submitting ? "Submitting..." : "Submit Task for Review"}
-                </Button>
+                {isAssigned ? (
+                  <Button 
+                    onClick={handleSubmit}
+                    className="w-full bg-gradient-primary"
+                    size="lg"
+                    disabled={submitting}
+                  >
+                    {submitting ? "Submitting..." : "Submit My Work"}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit}
+                    className="w-full bg-gradient-primary"
+                    size="lg"
+                    disabled={submitting}
+                  >
+                    {submitting ? "Submitting..." : "Submit Task for Review"}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
