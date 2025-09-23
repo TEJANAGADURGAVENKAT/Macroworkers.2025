@@ -1,0 +1,49 @@
+-- Fixed SQL script with no GROUP BY errors
+-- This version will work without any syntax errors
+
+-- Step 1: Update workers who have all documents approved
+UPDATE profiles 
+SET 
+  worker_status = 'interview_pending',
+  status = 'interview_pending',
+  updated_at = now()
+WHERE user_id IN (
+  SELECT p.user_id
+  FROM profiles p
+  LEFT JOIN worker_documents wd ON p.user_id = wd.worker_id
+  WHERE p.role = 'worker'
+  GROUP BY p.user_id
+  HAVING COUNT(CASE WHEN wd.verification_status = 'approved' THEN 1 END) = 5
+);
+
+-- Step 2: Check the results (FIXED - removed ORDER BY with created_at)
+SELECT 
+  p.user_id,
+  p.full_name,
+  p.worker_status,
+  p.status,
+  COUNT(wd.id) as total_docs,
+  COUNT(CASE WHEN wd.verification_status = 'approved' THEN 1 END) as approved_docs
+FROM profiles p
+LEFT JOIN worker_documents wd ON p.user_id = wd.worker_id
+WHERE p.role = 'worker'
+GROUP BY p.user_id, p.full_name, p.worker_status, p.status;
+
+-- Step 3: Count workers ready for interview
+SELECT 
+  COUNT(*) as workers_ready_for_interview
+FROM profiles 
+WHERE role = 'worker' 
+AND (worker_status = 'interview_pending' OR status = 'interview_pending');
+
+-- Step 4: Show all workers with their status (without GROUP BY issues)
+SELECT 
+  user_id,
+  full_name,
+  worker_status,
+  status,
+  created_at
+FROM profiles 
+WHERE role = 'worker'
+ORDER BY created_at DESC;
+
