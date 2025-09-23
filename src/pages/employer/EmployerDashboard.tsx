@@ -31,9 +31,13 @@ import {
   Loader2,
   Trash2,
   Star,
+<<<<<<< HEAD
   MessageSquare,
   UserCheck,
   Calendar
+=======
+  MessageSquare
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,10 +48,13 @@ import StarRating from "@/components/ui/star-rating-simple";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { updateEmployeeRating, getDesignationColor, getDesignationLabel, getEmployeeRatingSummary } from "@/lib/employee-ratings-api";
+<<<<<<< HEAD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkersList } from "@/hooks/useWorkersList";
 import { useWorkerDocuments } from "@/hooks/useWorkerDocuments";
 import { WorkerVerificationCard } from "@/components/employer/WorkerVerificationCard";
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 
 interface Task {
   id: string;
@@ -114,6 +121,7 @@ const EmployerDashboard = () => {
   const [submissionRatings, setSubmissionRatings] = useState<Record<string, number>>({});
   const [submissionFeedback, setSubmissionFeedback] = useState<Record<string, string>>({});
   const [submittingRating, setSubmittingRating] = useState<string | null>(null);
+<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState("overview");
 
   const displayName = (profile?.full_name || user?.email || "").split("@")[0] || "User";
@@ -126,12 +134,20 @@ const EmployerDashboard = () => {
     getWorkersReadyForInterview 
   } = useWorkersList();
   
+=======
+
+  const displayName = (profile?.full_name || user?.email || "").split("@")[0] || "User";
+  
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
   const sidebarItems = [
     { title: "Dashboard", url: "/employer", icon: Activity },
     { title: "My Campaigns", url: "/employer/campaigns", icon: Briefcase },
     { title: "Create Task", url: "/employer/create-task", icon: Plus },
+<<<<<<< HEAD
     { title: "Worker Verification", url: "/employer/worker-verification", icon: UserCheck },
     { title: "Interview Scheduling", url: "/employer/interview-scheduling", icon: Calendar },
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
     { title: "Review Submissions", url: "/employer/submissions", icon: FileText },
     { title: "Payments", url: "/employer/payments", icon: CreditCard },
     { title: "Profile", url: "/employer/profile", icon: Users },
@@ -424,6 +440,7 @@ const EmployerDashboard = () => {
       setSubmittingRating(null);
     }
   };
+<<<<<<< HEAD
 
   const handleDocumentStatusUpdate = async (documentId: string, status: 'approved' | 'rejected', notes?: string) => {
     try {
@@ -528,6 +545,8 @@ const EmployerDashboard = () => {
     }
   };
 
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-success/10 text-success";
@@ -776,6 +795,7 @@ const EmployerDashboard = () => {
               ))}
             </div>
 
+<<<<<<< HEAD
             {/* Tabbed Interface */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
@@ -786,6 +806,8 @@ const EmployerDashboard = () => {
 
               <TabsContent value="overview" className="space-y-6">
 
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Active Campaigns */}
               <div className="lg:col-span-2">
@@ -1135,6 +1157,7 @@ const EmployerDashboard = () => {
                 </Card>
               </div>
             </div>
+<<<<<<< HEAD
               </TabsContent>
 
               <TabsContent value="verification" className="space-y-6">
@@ -1244,6 +1267,8 @@ const EmployerDashboard = () => {
                 </div>
               </TabsContent>
             </Tabs>
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
           </div>
         </main>
       </div>

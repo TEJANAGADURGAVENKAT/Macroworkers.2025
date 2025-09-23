@@ -1,6 +1,11 @@
+<<<<<<< HEAD
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+=======
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +40,7 @@ import {
 import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+<<<<<<< HEAD
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,6 +55,16 @@ const WorkerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showRedirectToast, setShowRedirectToast] = useState(false);
   const [lastKnownStatus, setLastKnownStatus] = useState<string | null>(null);
+=======
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getEmployeeRatingSummary, getDesignationColor, getDesignationLabel } from "@/lib/employee-ratings-api";
+
+const WorkerDashboard = () => {
+  const { profile, user } = useAuth();
+  const [loading, setLoading] = useState(true);
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
   const [stats, setStats] = useState({
     currentBalance: 0,
     tasksCompleted: 0,
@@ -167,6 +183,7 @@ const WorkerDashboard = () => {
     }
   };
 
+<<<<<<< HEAD
   // Realtime subscription for profile status changes
   useEffect(() => {
     if (!user) return;
@@ -259,6 +276,8 @@ const WorkerDashboard = () => {
     }, 2000);
   };
 
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
   const loadRatingData = async () => {
     if (!user) return;
 
@@ -381,6 +400,7 @@ const WorkerDashboard = () => {
 
   return (
     <SidebarProvider>
+<<<<<<< HEAD
       {/* Redirect Toast Overlay */}
       <AnimatePresence>
         {showRedirectToast && (
@@ -414,6 +434,8 @@ const WorkerDashboard = () => {
         )}
       </AnimatePresence>
 
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
       <div className="min-h-screen flex w-full">
         <Sidebar className="w-64">
           <SidebarContent>
@@ -472,6 +494,7 @@ const WorkerDashboard = () => {
               </div>
             ) : (
               <>
+<<<<<<< HEAD
                 {/* Show onboarding status for non-active workers */}
                 {profile?.worker_status !== 'active_employee' && (
                   <div className="mb-8">
@@ -491,6 +514,10 @@ const WorkerDashboard = () => {
                 {/* Stats Grid - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+=======
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   {statsCards.map((stat) => (
                     <motion.div
                       key={stat.label}
@@ -511,12 +538,19 @@ const WorkerDashboard = () => {
                       </Card>
                     </motion.div>
                   ))}
+<<<<<<< HEAD
                   </div>
                 )}
 
                 {/* Dashboard Tabs - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
                   <Tabs defaultValue="overview" className="w-full">
+=======
+                </div>
+
+                {/* Dashboard Tabs */}
+                <Tabs defaultValue="overview" className="w-full">
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="ratings">My Ratings</TabsTrigger>
@@ -829,12 +863,17 @@ const WorkerDashboard = () => {
                       </div>
                     </div>
                   </TabsContent>
+<<<<<<< HEAD
                   </Tabs>
                 )}
 
                 {/* Additional dashboard content - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
                   <div className="grid lg:grid-cols-3 gap-6">
+=======
+                </Tabs>
+                <div className="grid lg:grid-cols-3 gap-6">
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   {/* Recent Tasks */}
                   <div className="lg:col-span-2">
                     <Card>
@@ -919,9 +958,14 @@ const WorkerDashboard = () => {
                         </div>
                       </CardContent>
                     </Card>
+<<<<<<< HEAD
                     </div>
                   </div>
                 )}
+=======
+                  </div>
+                </div>
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
               </>
             )}
           </div>

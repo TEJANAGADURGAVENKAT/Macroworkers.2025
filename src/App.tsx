@@ -7,8 +7,11 @@ import Navigation from "./components/layout/Navigation";
 import Footer from "./components/layout/Footer";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+<<<<<<< HEAD
 import WorkerStatusGuard from "@/components/auth/WorkerStatusGuard";
 import InterviewStatusGuard from "@/components/auth/InterviewStatusGuard";
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 
 // Auth pages
 import SignIn from "./pages/auth/SignIn";
@@ -30,17 +33,24 @@ import WorkerJobs from "./pages/worker/WorkerJobs";
 import WorkerTasks from "./pages/worker/WorkerTasks";
 import WorkerEarnings from "./pages/worker/WorkerEarnings";
 import WorkerProfile from "./pages/worker/WorkerProfile";
+<<<<<<< HEAD
 import DocumentUpload from "./pages/worker/onboarding/DocumentUpload";
 import TaskDetail from "./pages/worker/TaskDetail";
 import InterviewSchedule from "./pages/worker/InterviewSchedule";
 import TestRedirect from "./pages/debug/TestRedirect";
+=======
+import TaskDetail from "./pages/worker/TaskDetail";
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 
 // Employer pages
 import EmployerDashboard from "./pages/employer/EmployerDashboard";
 import EmployerCampaigns from "./pages/employer/EmployerCampaigns";
 import CreateTask from "./pages/employer/CreateTask";
+<<<<<<< HEAD
 import WorkerVerification from "./pages/employer/WorkerVerification";
 import InterviewScheduling from "./pages/employer/InterviewScheduling";
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 import SubmissionsReview from "./pages/employer/SubmissionsReview";
 import EmployerPayments from "./pages/employer/EmployerPayments";
 import EmployerTaskDetail from "./pages/employer/EmployerTaskDetail";
@@ -98,7 +108,10 @@ function App() {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
 
                 {/* Worker Routes */}
+<<<<<<< HEAD
                 <Route path="/worker/onboarding/documents" element={<DocumentUpload />} />
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                 <Route path="/worker" element={
                   <ProtectedRoute allowedRoles={['worker']}>
                     <WorkerDashboard />
@@ -106,23 +119,35 @@ function App() {
                 } />
                 <Route path="/worker/jobs" element={
                   <ProtectedRoute allowedRoles={['worker']}>
+<<<<<<< HEAD
                     <WorkerStatusGuard requiresJobAccess={true}>
                       <WorkerJobs />
                     </WorkerStatusGuard>
+=======
+                    <WorkerJobs />
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   </ProtectedRoute>
                 } />
                 <Route path="/worker/tasks" element={
                   <ProtectedRoute allowedRoles={['worker']}>
+<<<<<<< HEAD
                     <WorkerStatusGuard requiresTaskSubmission={true}>
                       <WorkerTasks />
                     </WorkerStatusGuard>
+=======
+                    <WorkerTasks />
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   </ProtectedRoute>
                 } />
                 <Route path="/worker/earnings" element={
                   <ProtectedRoute allowedRoles={['worker']}>
+<<<<<<< HEAD
                     <WorkerStatusGuard requiresTaskSubmission={true}>
                       <WorkerEarnings />
                     </WorkerStatusGuard>
+=======
+                    <WorkerEarnings />
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   </ProtectedRoute>
                 } />
                 <Route path="/worker/profile" element={
@@ -132,6 +157,7 @@ function App() {
                 } />
                 <Route path="/worker/task/:id" element={
                   <ProtectedRoute allowedRoles={['worker']}>
+<<<<<<< HEAD
                     <WorkerStatusGuard requiresTaskSubmission={true}>
                       <TaskDetail />
                     </WorkerStatusGuard>
@@ -145,6 +171,11 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="/debug/test-redirect" element={<TestRedirect />} />
+=======
+                    <TaskDetail />
+                  </ProtectedRoute>
+                } />
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 
                 {/* Employer Routes */}
                 <Route path="/employer" element={
@@ -167,6 +198,7 @@ function App() {
                     <RoleBasedTasks />
                   </ProtectedRoute>
                 } />
+<<<<<<< HEAD
                 <Route path="/employer/worker-verification" element={
                   <ProtectedRoute allowedRoles={['employer']}>
                     <WorkerVerification />
@@ -177,6 +209,8 @@ function App() {
                     <InterviewScheduling />
                   </ProtectedRoute>
                 } />
+=======
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                 <Route path="/employer/submissions" element={
                   <ProtectedRoute allowedRoles={['employer']}>
                     <SubmissionsReview />

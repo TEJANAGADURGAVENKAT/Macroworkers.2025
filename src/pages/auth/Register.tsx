@@ -91,12 +91,17 @@ const Register = () => {
       );
 
       if (!error) {
+<<<<<<< HEAD
         // Registration successful - redirect based on user type
         if (formData.userType === 'worker') {
           navigate('/worker/onboarding/documents');
         } else {
           navigate('/signin');
         }
+=======
+        // Registration successful - user will be redirected automatically after email verification
+        navigate('/signin');
+>>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
       }
       
       setIsSubmitting(false);
