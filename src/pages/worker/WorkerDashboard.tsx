@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-=======
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,33 +9,32 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { 
-  Search, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle,
-  Star,
+import {
+  Users,
   Briefcase,
-  User,
-  Wallet,
+  DollarSign,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
   Activity,
-  RefreshCw,
-  Award,
+  FileText,
+  CreditCard,
+  User,
+  Star,
+  Calendar,
   MessageSquare,
-  Calendar
+  UserCheck
 } from "lucide-react";
 import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-<<<<<<< HEAD
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,16 +49,6 @@ const WorkerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showRedirectToast, setShowRedirectToast] = useState(false);
   const [lastKnownStatus, setLastKnownStatus] = useState<string | null>(null);
-=======
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getEmployeeRatingSummary, getDesignationColor, getDesignationLabel } from "@/lib/employee-ratings-api";
-
-const WorkerDashboard = () => {
-  const { profile, user } = useAuth();
-  const [loading, setLoading] = useState(true);
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
   const [stats, setStats] = useState({
     currentBalance: 0,
     tasksCompleted: 0,
@@ -72,118 +56,26 @@ const WorkerDashboard = () => {
     successRate: 0
   });
   const [recentTasks, setRecentTasks] = useState<any[]>([]);
-  const [weeklyStats, setWeeklyStats] = useState({
-    earnings: 0,
-    tasks: 0,
-    averagePerTask: 0
-  });
   const [ratingData, setRatingData] = useState({
     averageRating: 0,
-    designation: 'L1' as 'L1' | 'L2' | 'L3',
+    designation: 'L1',
     totalRatings: 0,
-    approvedRatingsCount: 0,
-    rejectedRatingsCount: 0,
-    pendingRatingsCount: 0,
-    ratingHistory: [] as any[]
+    recentRatings: [] as any[]
+  });
+  const [weeklyStats, setWeeklyStats] = useState({
+    tasksCompleted: 0,
+    earnings: 0,
+    averagePerTask: 0
   });
 
-  const displayName = (profile?.full_name || user?.email || "").split("@")[0] || "User";
   const sidebarItems = [
     { title: "Dashboard", url: "/worker", icon: Activity },
-    { title: "Available Jobs", url: "/worker/jobs", icon: Search },
-    { title: "My Tasks", url: "/worker/tasks", icon: Briefcase },
-    { title: "Earnings", url: "/worker/earnings", icon: Wallet },
+    { title: "Find Jobs", url: "/worker/jobs", icon: Briefcase },
+    { title: "My Tasks", url: "/worker/tasks", icon: FileText },
+    { title: "Earnings", url: "/worker/earnings", icon: DollarSign },
     { title: "Profile", url: "/worker/profile", icon: User },
   ];
 
-  useEffect(() => {
-    if (user) {
-      loadDashboardData();
-    }
-  }, [user]);
-
-  const loadDashboardData = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      console.log('Loading worker dashboard data for user:', user.id);
-      
-      // Load worker's submissions
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from('task_submissions')
-        .select(`
-          *,
-          task:tasks(
-            id,
-            title,
-            budget,
-            created_by
-          )
-        `)
-        .eq('worker_id', user.id)
-        .order('submitted_at', { ascending: false });
-
-      if (submissionsError) {
-        console.error('Error loading submissions:', submissionsError);
-        throw submissionsError;
-      }
-
-      console.log('Submissions loaded:', submissionsData);
-
-      // Calculate stats
-      const totalSubmissions = submissionsData?.length || 0;
-      const completedTasks = submissionsData?.filter(s => s.status === 'approved').length || 0;
-      const pendingTasks = submissionsData?.filter(s => s.status === 'pending').length || 0;
-      const totalEarnings = submissionsData
-        ?.filter(s => s.status === 'approved')
-        .reduce((sum, s) => sum + (s.task?.budget || 0), 0) || 0;
-      
-      const successRate = totalSubmissions > 0 ? Math.round((completedTasks / totalSubmissions) * 100) : 0;
-
-      setStats({
-        currentBalance: totalEarnings,
-        tasksCompleted: completedTasks,
-        inProgress: pendingTasks,
-        successRate
-      });
-
-      // Get recent tasks (last 5 submissions)
-      const recentSubmissions = submissionsData?.slice(0, 5) || [];
-      setRecentTasks(recentSubmissions);
-
-      // Calculate weekly stats (last 7 days)
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      
-      const weeklySubmissions = submissionsData?.filter(s => 
-        new Date(s.submitted_at) >= oneWeekAgo
-      ) || [];
-
-      const weeklyEarnings = weeklySubmissions
-        .filter(s => s.status === 'approved')
-        .reduce((sum, s) => sum + (s.task?.budget || 0), 0);
-      
-      const weeklyTasks = weeklySubmissions.length;
-      const weeklyAverage = weeklyTasks > 0 ? weeklyEarnings / weeklyTasks : 0;
-
-      setWeeklyStats({
-        earnings: weeklyEarnings,
-        tasks: weeklyTasks,
-        averagePerTask: weeklyAverage
-      });
-
-      // Load rating data
-      await loadRatingData();
-
-    } catch (error: any) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-<<<<<<< HEAD
   // Realtime subscription for profile status changes
   useEffect(() => {
     if (!user) return;
@@ -205,69 +97,58 @@ const WorkerDashboard = () => {
           console.log('Old data:', payload.old);
           console.log('New data:', payload.new);
           
-          const newStatus = payload.new.status || payload.new.worker_status;
-          const oldStatus = payload.old.status || payload.old.worker_status;
+          const newStatus = payload.new.worker_status;
+          const oldStatus = payload.old.worker_status;
           
-          console.log('Status change:', { oldStatus, newStatus });
+          console.log('Status changed from', oldStatus, 'to', newStatus);
           
-          // Check if status changed to interview_pending
-          if (newStatus === 'interview_pending' && oldStatus !== 'interview_pending') {
-            console.log('Worker status changed to interview_pending, redirecting...');
-            handleStatusChangeToInterviewPending();
+          // Check if worker was just approved for interview
+          if (newStatus === 'interview_pending' && oldStatus === 'verification_pending') {
+            console.log('Worker approved! Showing redirect toast...');
+            setShowRedirectToast(true);
+            
+            // Auto-hide toast after 5 seconds
+            setTimeout(() => {
+              setShowRedirectToast(false);
+            }, 5000);
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
       console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user]);
 
-  // Fallback: Periodic status check in case realtime doesn't work
+  // Check for status changes on component mount
   useEffect(() => {
-    if (!user || !profile) return;
+    if (!profile || !user) return;
 
-    const currentStatus = profile.status || profile.worker_status;
-    setLastKnownStatus(currentStatus);
+    console.log('Current profile status:', profile.worker_status);
+    
+    // If this is the first time we're seeing interview_pending status, show toast
+    if (profile.worker_status === 'interview_pending' && lastKnownStatus !== 'interview_pending') {
+      console.log('First time seeing interview_pending status, showing toast');
+      setShowRedirectToast(true);
+      
+      // Auto-hide toast after 5 seconds
+      setTimeout(() => {
+        setShowRedirectToast(false);
+      }, 5000);
+    }
+    
+    setLastKnownStatus(profile.worker_status);
+  }, [profile?.worker_status, user, lastKnownStatus]);
 
-    // Check status every 5 seconds
-    const interval = setInterval(async () => {
-      try {
-        const { data: currentProfile } = await supabase
-          .from('profiles')
-          .select('status, worker_status')
-          .eq('user_id', user.id)
-          .single();
-
-        if (currentProfile) {
-          const newStatus = currentProfile.status || currentProfile.worker_status;
-          
-          // Check if status changed to interview_pending
-          if (newStatus === 'interview_pending' && lastKnownStatus !== 'interview_pending') {
-            console.log('Status change detected via polling:', { lastKnownStatus, newStatus });
-            handleStatusChangeToInterviewPending();
-            setLastKnownStatus(newStatus);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking status:', error);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [user?.id, profile, lastKnownStatus]);
-
-  const handleStatusChangeToInterviewPending = () => {
-    // Show toast notification
-    setShowRedirectToast(true);
+  const handleRedirectToInterview = () => {
+    setShowRedirectToast(false);
+    
+    // Show a brief loading state
     toast({
-      title: "Documents Approved! 🎉",
-      description: "Your documents have been approved. Please proceed to schedule your interview.",
-      duration: 5000,
+      title: "Redirecting to Interview Schedule",
+      description: "Please wait while we redirect you...",
     });
 
     // Redirect after 2 seconds with smooth animation
@@ -276,8 +157,6 @@ const WorkerDashboard = () => {
     }, 2000);
   };
 
-=======
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
   const loadRatingData = async () => {
     if (!user) return;
 
@@ -293,114 +172,141 @@ const WorkerDashboard = () => {
         const newRatingData = {
           averageRating: ratingSummary.average_rating,
           designation: ratingSummary.designation,
-          totalRatings: ratingSummary.approved_ratings_count,
-          approvedRatingsCount: ratingSummary.approved_ratings_count,
-          rejectedRatingsCount: ratingSummary.rejected_ratings_count,
-          pendingRatingsCount: ratingSummary.pending_ratings_count,
-          ratingHistory: ratingSummary.rating_history
+          totalRatings: ratingSummary.total_ratings,
+          recentRatings: ratingSummary.recent_ratings || []
         };
         
         console.log('Setting rating data:', newRatingData);
         setRatingData(newRatingData);
-      } else {
-        console.log('No rating summary found, using defaults');
-        // Fallback to default values
-        setRatingData({
-          averageRating: 1.0,
-          designation: 'L1',
-          totalRatings: 0,
-          approvedRatingsCount: 0,
-          rejectedRatingsCount: 0,
-          pendingRatingsCount: 0,
-          ratingHistory: []
-        });
       }
-
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading rating data:', error);
-      // Set default values on error
-      setRatingData({
-        averageRating: 1.0,
-        designation: 'L1',
-        totalRatings: 0,
-        approvedRatingsCount: 0,
-        rejectedRatingsCount: 0,
-        pendingRatingsCount: 0,
-        ratingHistory: []
-      });
     }
   };
+
+  const loadRecentTasks = async () => {
+    if (!user) return;
+
+    try {
+      const { data: tasks, error } = await supabase
+        .from('task_submissions')
+        .select(`
+          id,
+          submitted_at,
+          status,
+          task:tasks(id, title, budget)
+        `)
+        .eq('worker_id', user.id)
+        .order('submitted_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentTasks(tasks || []);
+    } catch (error) {
+      console.error('Error loading recent tasks:', error);
+    }
+  };
+
+  const loadWeeklyStats = async () => {
+    if (!user) return;
+
+    try {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const { data: tasks, error } = await supabase
+        .from('task_submissions')
+        .select(`
+          id,
+          submitted_at,
+          status,
+          task:tasks(id, title, budget)
+        `)
+        .eq('worker_id', user.id)
+        .eq('status', 'approved')
+        .gte('submitted_at', oneWeekAgo.toISOString());
+
+      if (error) throw error;
+
+      const completedTasks = tasks || [];
+      const totalEarnings = completedTasks.reduce((sum, task) => sum + (task.task?.budget || 0), 0);
+      const averagePerTask = completedTasks.length > 0 ? totalEarnings / completedTasks.length : 0;
+
+      setWeeklyStats({
+        tasksCompleted: completedTasks.length,
+        earnings: totalEarnings,
+        averagePerTask
+      });
+    } catch (error) {
+      console.error('Error loading weekly stats:', error);
+    }
+  };
+
+  const loadDashboardData = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      await Promise.all([
+        loadRatingData(),
+        loadRecentTasks(),
+        loadWeeklyStats()
+      ]);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [user]);
+
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-success text-success-foreground';
-      case 'pending': return 'bg-warning text-warning-foreground';
-      case 'rejected': return 'bg-destructive text-destructive-foreground';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  const getDesignationColor = (designation: string) => {
-    switch (designation) {
-      case "L1": return "bg-red-100 text-red-700";
-      case "L2": return "bg-yellow-100 text-yellow-700";
-      case "L3": return "bg-green-100 text-green-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getDesignationLabel = (designation: string) => {
-    switch (designation) {
-      case "L1": return "Beginner";
-      case "L2": return "Intermediate";
-      case "L3": return "Expert";
-      default: return "Unknown";
-    }
-  };
-
-  const renderStars = (rating: number | null, size: 'sm' | 'md' | 'lg' = 'md') => {
-    if (rating === null || rating === undefined) {
-      // Show empty stars for unrated items
-      return Array.from({ length: 5 }, (_, index) => (
-        <Star
-          key={index}
-          className={`${size === 'sm' ? 'w-3 h-3' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4'} text-gray-300`}
-        />
-      ));
-    }
-
-    return Array.from({ length: 5 }, (_, index) => (
-      <Star
-        key={index}
-        className={`${size === 'sm' ? 'w-3 h-3' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4'} ${
-          index < rating
-            ? 'text-yellow-400 fill-yellow-400'
-            : 'text-gray-300'
-        }`}
-      />
-    ));
-  };
   const statsCards = [
-    { label: "Current Balance", value: formatINR(stats.currentBalance), icon: IndianRupee, color: "text-success" },
-    { label: "Tasks Completed", value: stats.tasksCompleted.toString(), icon: CheckCircle, color: "text-primary" },
-    { label: "In Progress", value: stats.inProgress.toString(), icon: Clock, color: "text-warning" },
-    { label: "Success Rate", value: `${stats.successRate}%`, icon: TrendingUp, color: "text-success" }
+    {
+      label: "Current Balance",
+      value: formatINR(stats.currentBalance),
+      icon: DollarSign,
+      color: "text-green-600",
+      bgColor: "bg-green-100"
+    },
+    {
+      label: "Tasks Completed",
+      value: stats.tasksCompleted.toString(),
+      icon: CheckCircle,
+      color: "text-blue-600",
+      bgColor: "bg-blue-100"
+    },
+    {
+      label: "In Progress",
+      value: stats.inProgress.toString(),
+      icon: Clock,
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-100"
+    },
+    {
+      label: "Success Rate",
+      value: `${stats.successRate}%`,
+      icon: TrendingUp,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100"
+    }
   ];
 
   return (
     <SidebarProvider>
-<<<<<<< HEAD
       {/* Redirect Toast Overlay */}
       <AnimatePresence>
         {showRedirectToast && (
@@ -421,11 +327,14 @@ const WorkerDashboard = () => {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                   Documents Approved! 🎉
                 </h3>
-                <p className="text-gray-600">
-                  Your documents have been approved. Redirecting to interview schedule...
+                <p className="text-gray-600 mb-6">
+                  Your documents have been approved. You can now schedule your interview!
                 </p>
+                <Button onClick={handleRedirectToInterview} className="w-full">
+                  Go to Interview Schedule
+                </Button>
               </div>
-              <div className="flex items-center justify-center space-x-2">
+              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                 <span className="text-sm text-gray-500">Please wait...</span>
               </div>
@@ -433,9 +342,6 @@ const WorkerDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-=======
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
       <div className="min-h-screen flex w-full">
         <Sidebar className="w-64">
           <SidebarContent>
@@ -462,29 +368,19 @@ const WorkerDashboard = () => {
         </Sidebar>
 
         <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Header */}
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Welcome back, {displayName}! 👋</h1>
-                <p className="text-muted-foreground">Here's your worker dashboard overview</p>
+                <h1 className="text-3xl font-bold">
+                  Welcome back, {profile?.full_name || user?.email || "Worker"}!
+                </h1>
+                <p className="text-muted-foreground">
+                  Here's what's happening with your work today.
+                </p>
               </div>
-              <div className="flex items-center space-x-3">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={loadDashboardData}
-                  disabled={loading}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                  {loading ? 'Loading...' : 'Refresh'}
-                </Button>
-                <Badge className="bg-success/10 text-success">
-                  <Star className="w-3 h-3 mr-1" />
-                  {stats.successRate > 0 ? `${stats.successRate}% Success` : 'New Worker'}
-                </Badge>
-                <SidebarTrigger />
-              </div>
+              <Badge variant="outline" className="text-sm">
+                {getDesignationLabel(ratingData.designation)}
+              </Badge>
             </div>
 
             {loading ? (
@@ -494,7 +390,6 @@ const WorkerDashboard = () => {
               </div>
             ) : (
               <>
-<<<<<<< HEAD
                 {/* Show onboarding status for non-active workers */}
                 {profile?.worker_status !== 'active_employee' && (
                   <div className="mb-8">
@@ -502,7 +397,7 @@ const WorkerDashboard = () => {
                   </div>
                 )}
 
-                {/* Show My Interview card for workers with interview status */}
+                {/* Show interview card for workers with scheduled interviews */}
                 {(profile?.worker_status === 'interview_pending' || 
                   profile?.worker_status === 'interview_scheduled' || 
                   profile?.worker_status === 'active_employee') && (
@@ -514,10 +409,6 @@ const WorkerDashboard = () => {
                 {/* Stats Grid - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-=======
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   {statsCards.map((stat) => (
                     <motion.div
                       key={stat.label}
@@ -529,28 +420,25 @@ const WorkerDashboard = () => {
                         <CardContent className="p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-muted-foreground">{stat.label}</p>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                {stat.label}
+                              </p>
                               <p className="text-2xl font-bold">{stat.value}</p>
                             </div>
-                            <stat.icon className={`h-8 w-8 ${stat.color}`} />
+                            <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                              <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                     </motion.div>
                   ))}
-<<<<<<< HEAD
                   </div>
                 )}
 
                 {/* Dashboard Tabs - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
                   <Tabs defaultValue="overview" className="w-full">
-=======
-                </div>
-
-                {/* Dashboard Tabs */}
-                <Tabs defaultValue="overview" className="w-full">
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="ratings">My Ratings</TabsTrigger>
@@ -584,15 +472,9 @@ const WorkerDashboard = () => {
                                       Submitted: {formatTimeAgo(task.submitted_at)}
                                     </p>
                                   </div>
-                                  <div className="text-right space-y-1">
-                                    <p className="font-semibold">{formatINR(task.task?.budget || 0)}</p>
-                                    <Badge 
-                                      variant="secondary"
-                                      className={getStatusColor(task.status)}
-                                    >
-                                      {task.status}
-                                    </Badge>
-                                  </div>
+                                  <Badge variant={task.status === 'approved' ? 'default' : 'secondary'}>
+                                    {task.status}
+                                  </Badge>
                                 </div>
                               ))
                             )}
@@ -600,45 +482,24 @@ const WorkerDashboard = () => {
                         </Card>
                       </div>
 
-                      {/* Quick Actions */}
-                      <div className="space-y-6">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Quick Actions</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <Button className="w-full bg-gradient-primary" asChild>
-                              <Link to="/worker/jobs">Find New Tasks</Link>
-                            </Button>
-                            <Button variant="outline" className="w-full" asChild>
-                              <Link to="/worker/earnings">Withdraw Earnings</Link>
-                            </Button>
-                            <Button variant="outline" className="w-full" asChild>
-                              <Link to="/worker/profile">Update Profile</Link>
-                            </Button>
-                          </CardContent>
-                        </Card>
-
-                        {/* Earnings Summary */}
+                      {/* Weekly Stats */}
+                      <div>
                         <Card>
                           <CardHeader>
                             <CardTitle>This Week</CardTitle>
                           </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Earnings</span>
-                                <span className="font-semibold">{formatINR(weeklyStats.earnings)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Tasks</span>
-                                <span className="font-semibold">{weeklyStats.tasks}</span>
-                              </div>
-                              <Separator />
-                              <div className="flex justify-between">
-                                <span className="font-medium">Average per task</span>
-                                <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
-                              </div>
+                          <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Tasks Completed</span>
+                              <span className="font-semibold">{weeklyStats.tasksCompleted}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Earnings</span>
+                              <span className="font-semibold text-success">{formatINR(weeklyStats.earnings)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Avg per Task</span>
+                              <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
                             </div>
                           </CardContent>
                         </Card>
@@ -647,233 +508,66 @@ const WorkerDashboard = () => {
                   </TabsContent>
 
                   <TabsContent value="ratings" className="space-y-6">
-                    <div className="grid lg:grid-cols-3 gap-6">
-                      {/* Rating Overview */}
-                      <div className="lg:col-span-1">
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5 }}
-                        >
-                          <Card className="h-full">
-                            <CardHeader>
-                              <CardTitle className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <Award className="h-5 w-5" />
-                                  <span>Rating Overview</span>
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    console.log('Force refreshing rating data...');
-                                    loadRatingData();
-                                  }}
-                                  className="h-8 w-8 p-0"
-                                  title="Refresh rating data"
-                                >
-                                  <RefreshCw className="h-4 w-4" />
-                                </Button>
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                              {/* Average Rating */}
-                              <div className="text-center space-y-4">
-                                <div className="flex justify-center space-x-1">
-                                  {renderStars(Math.floor(ratingData.averageRating), 'lg')}
-                                </div>
-                              <div>
-                                <p className="text-4xl font-bold text-primary">{ratingData.averageRating.toFixed(1)}</p>
-                                <p className="text-sm text-muted-foreground">Average Rating</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Based on {ratingData.approvedRatingsCount} approved submission{ratingData.approvedRatingsCount !== 1 ? 's' : ''}
-                                </p>
-                                {ratingData.approvedRatingsCount === 0 && (
-                                  <p className="text-xs text-amber-600 mt-1">
-                                    No approved ratings yet - default rating shown
-                                  </p>
-                                )}
-                              </div>
-                              </div>
+                    <div className="grid lg:grid-cols-2 gap-6">
+                      {/* Rating Summary */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Rating Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Average Rating</span>
+                            <div className="flex items-center space-x-2">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              <span className="font-semibold">{ratingData.averageRating.toFixed(1)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Total Ratings</span>
+                            <span className="font-semibold">{ratingData.totalRatings}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Designation</span>
+                            <Badge variant="outline" className={getDesignationColor(ratingData.designation)}>
+                              {getDesignationLabel(ratingData.designation)}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
 
-                              <Separator />
-
-                              {/* Designation */}
-                              <div className="text-center space-y-3">
-                                <Badge 
-                                  variant="secondary" 
-                                  className={`text-sm px-4 py-2 ${getDesignationColor(ratingData.designation)}`}
-                                >
-                                  {ratingData.designation} - {getDesignationLabel(ratingData.designation)}
-                                </Badge>
-                                <p className="text-xs text-muted-foreground">Current Level</p>
-                              </div>
-
-                              <Separator />
-
-                              {/* Detailed Stats */}
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                                    <p className="text-lg font-bold text-green-600">{ratingData.approvedRatingsCount}</p>
-                                    <p className="text-xs text-green-700">Approved</p>
+                      {/* Recent Ratings */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Recent Ratings</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {ratingData.recentRatings.length === 0 ? (
+                            <p className="text-muted-foreground text-center py-4">No ratings yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {ratingData.recentRatings.map((rating, index) => (
+                                <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                    <span className="font-medium">{rating.rating}</span>
                                   </div>
-                                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                                    <p className="text-lg font-bold text-red-600">{ratingData.rejectedRatingsCount}</p>
-                                    <p className="text-xs text-red-700">Rejected</p>
-                                  </div>
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatTimeAgo(rating.created_at)}
+                                  </span>
                                 </div>
-                                
-                                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                  <p className="text-lg font-bold text-blue-600">{ratingData.pendingRatingsCount}</p>
-                                  <p className="text-xs text-blue-700">Pending Review</p>
-                                </div>
-
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">Total Tasks</span>
-                                  <span className="font-semibold">{stats.tasksCompleted}</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      </div>
-
-                      {/* Rating History */}
-                      <div className="lg:col-span-2">
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: 0.2 }}
-                        >
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <Star className="h-5 w-5" />
-                                  <span>Rating History</span>
-                                </div>
-                                <Badge variant="outline" className="text-xs">
-                                  {ratingData.ratingHistory.length} total
-                                </Badge>
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              {ratingData.ratingHistory.length === 0 ? (
-                                <div className="text-center py-12">
-                                  <Star className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                                  <p className="text-lg text-muted-foreground mb-2">No ratings yet</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Complete tasks to start receiving ratings from employers
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="space-y-4">
-                                  {ratingData.ratingHistory.map((rating, index) => (
-                                    <motion.div
-                                      key={rating.id}
-                                      initial={{ opacity: 0, x: -20 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                                      className={`p-4 rounded-lg space-y-3 border-l-4 ${
-                                        rating.status === 'approved' 
-                                          ? 'bg-green-50 border-green-400' 
-                                          : rating.status === 'rejected'
-                                          ? 'bg-red-50 border-red-400'
-                                          : 'bg-yellow-50 border-yellow-400'
-                                      }`}
-                                    >
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                          <h4 className="font-medium text-slate-900">{rating.task_title || 'Unknown Task'}</h4>
-                                          <p className="text-sm text-muted-foreground">
-                                            {formatTimeAgo(rating.submitted_at)}
-                                          </p>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
-                                          <div className="flex space-x-1">
-                                            {renderStars(rating.employer_rating_given, 'sm')}
-                                          </div>
-                                          <div className="text-right">
-                                            <span className="text-sm font-medium">
-                                              {rating.employer_rating_given ? `${rating.employer_rating_given}/5` : 'Not Rated'}
-                                            </span>
-                                            <div className="flex items-center space-x-1 mt-1">
-                                              <Badge 
-                                                variant="outline" 
-                                                className={`text-xs ${
-                                                  rating.status === 'approved' 
-                                                    ? 'text-green-700 border-green-300 bg-green-100' 
-                                                    : rating.status === 'rejected'
-                                                    ? 'text-red-700 border-red-300 bg-red-100'
-                                                    : 'text-yellow-700 border-yellow-300 bg-yellow-100'
-                                                }`}
-                                              >
-                                                {rating.status}
-                                              </Badge>
-                                              {rating.is_counted_in_average && (
-                                                <Badge variant="secondary" className="text-xs">
-                                                  Counted
-                                                </Badge>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      
-                                      {rating.rating_feedback && (
-                                        <motion.div
-                                          initial={{ opacity: 0, height: 0 }}
-                                          animate={{ opacity: 1, height: 'auto' }}
-                                          transition={{ duration: 0.3 }}
-                                          className="bg-white/70 p-3 rounded border-l-4 border-blue-500"
-                                        >
-                                          <div className="flex items-start space-x-2">
-                                            <MessageSquare className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                                            <div>
-                                              <p className="text-xs font-medium text-blue-700 mb-1">Employer Feedback</p>
-                                              <p className="text-sm text-slate-700">{rating.rating_feedback}</p>
-                                            </div>
-                                          </div>
-                                        </motion.div>
-                                      )}
-                                      
-                                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                        <div className="flex items-center space-x-4">
-                                          <span>Budget: {formatINR(rating.task_budget || 0)}</span>
-                                          {rating.employer_rating_given && (
-                                            <span className="flex items-center space-x-1">
-                                              <Star className="h-3 w-3" />
-                                              <span>Rated</span>
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center space-x-1">
-                                          <Calendar className="h-3 w-3" />
-                                          <span>{new Date(rating.submitted_at).toLocaleDateString()}</span>
-                                        </div>
-                                      </div>
-                                    </motion.div>
-                                  ))}
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
                   </TabsContent>
-<<<<<<< HEAD
                   </Tabs>
                 )}
 
                 {/* Additional dashboard content - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
                   <div className="grid lg:grid-cols-3 gap-6">
-=======
-                </Tabs>
-                <div className="grid lg:grid-cols-3 gap-6">
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
                   {/* Recent Tasks */}
                   <div className="lg:col-span-2">
                     <Card>
@@ -900,15 +594,9 @@ const WorkerDashboard = () => {
                                   Submitted: {formatTimeAgo(task.submitted_at)}
                                 </p>
                               </div>
-                              <div className="text-right space-y-1">
-                                <p className="font-semibold">{formatINR(task.task?.budget || 0)}</p>
-                                <Badge 
-                                  variant="secondary"
-                                  className={getStatusColor(task.status)}
-                                >
-                                  {task.status}
-                                </Badge>
-                              </div>
+                              <Badge variant={task.status === 'approved' ? 'default' : 'secondary'}>
+                                {task.status}
+                              </Badge>
                             </div>
                           ))
                         )}
@@ -916,56 +604,30 @@ const WorkerDashboard = () => {
                     </Card>
                   </div>
 
-                  {/* Quick Actions */}
-                  <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Quick Actions</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <Button className="w-full bg-gradient-primary" asChild>
-                          <Link to="/worker/jobs">Find New Tasks</Link>
-                        </Button>
-                        <Button variant="outline" className="w-full" asChild>
-                          <Link to="/worker/earnings">Withdraw Earnings</Link>
-                        </Button>
-                        <Button variant="outline" className="w-full" asChild>
-                          <Link to="/worker/profile">Update Profile</Link>
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    {/* Earnings Summary */}
+                  {/* Weekly Stats */}
+                  <div>
                     <Card>
                       <CardHeader>
                         <CardTitle>This Week</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Earnings</span>
-                            <span className="font-semibold">{formatINR(weeklyStats.earnings)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tasks</span>
-                            <span className="font-semibold">{weeklyStats.tasks}</span>
-                          </div>
-                          <Separator />
-                          <div className="flex justify-between">
-                            <span className="font-medium">Average per task</span>
-                            <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
-                          </div>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Tasks Completed</span>
+                          <span className="font-semibold">{weeklyStats.tasksCompleted}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Earnings</span>
+                          <span className="font-semibold text-success">{formatINR(weeklyStats.earnings)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Avg per Task</span>
+                          <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
                         </div>
                       </CardContent>
                     </Card>
-<<<<<<< HEAD
                     </div>
                   </div>
                 )}
-=======
-                  </div>
-                </div>
->>>>>>> 22b8ef5c22a983643de0cfb17e170083bc49eaa6
               </>
             )}
           </div>
