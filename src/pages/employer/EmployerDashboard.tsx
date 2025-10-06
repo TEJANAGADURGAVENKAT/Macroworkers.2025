@@ -39,7 +39,6 @@ import { formatINR } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { DebugPanel } from "@/components/ui/debug-panel";
 import StarRating from "@/components/ui/star-rating-simple";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -1245,10 +1244,6 @@ const EmployerDashboard = () => {
         </main>
       </div>
       
-      {/* Debug Panel - Remove this after fixing */}
-      <div className="p-6 bg-muted/30">
-        <DebugPanel />
-      </div>
     </SidebarProvider>
   );
 };

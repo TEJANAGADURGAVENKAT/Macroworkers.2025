@@ -4,6 +4,7 @@ export type WorkerStatus =
   | 'document_upload_pending'
   | 'verification_pending'
   | 'interview_pending'
+  | 'interview_scheduled'
   | 'active_employee'
   | 'rejected';
 
@@ -53,11 +54,26 @@ export const getWorkerStatusInfo = (status: WorkerStatus): WorkerStatusInfo => {
         status,
         title: 'Interview Scheduling',
         description: 'Your documents are approved. An interview will be scheduled soon',
-        canAccessJobs: false,
+        canAccessJobs: true,
         canSubmitTasks: false,
         nextSteps: [
+          'Browse available jobs',
           'Wait for interview scheduling',
           'Prepare for the interview',
+          'Check your email for interview details'
+        ]
+      };
+
+    case 'interview_scheduled':
+      return {
+        status,
+        title: 'Interview Scheduled',
+        description: 'Your interview has been scheduled. You can browse jobs while waiting for your interview',
+        canAccessJobs: true,
+        canSubmitTasks: false,
+        nextSteps: [
+          'Browse available jobs',
+          'Prepare for your scheduled interview',
           'Check your email for interview details'
         ]
       };
@@ -105,7 +121,7 @@ export const getWorkerStatusInfo = (status: WorkerStatus): WorkerStatusInfo => {
  * Check if worker can access jobs based on their status
  */
 export const canWorkerAccessJobs = (workerStatus?: string | null): boolean => {
-  return workerStatus === 'active_employee';
+  return ['interview_pending', 'interview_scheduled', 'active_employee'].includes(workerStatus || '');
 };
 
 /**

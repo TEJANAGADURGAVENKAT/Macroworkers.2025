@@ -11,6 +11,7 @@ interface Profile {
   role: 'admin' | 'employer' | 'worker';
   avatar_url: string | null;
   phone: string | null;
+  worker_status?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -91,6 +92,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Set up real-time profile updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('profile_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Profile updated:', payload.new);
+          setProfile(payload.new as Profile);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const signUp = async (email: string, password: string, fullName: string, role: 'employer' | 'worker', phone: string, category?: string) => {
     try {

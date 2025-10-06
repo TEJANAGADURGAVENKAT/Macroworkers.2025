@@ -984,7 +984,7 @@ Check browser console for detailed logs.`);
                                         <span className="text-xs font-mono text-muted-foreground bg-background px-2 py-1 rounded">
                                           Task ID: {submission.task_id.substring(0, 8)}...
                                         </span>
-                                        <Badge className={getStatusColor(submission.status)} variant="secondary" className="text-xs">
+                                        <Badge className={`${getStatusColor(submission.status)} text-xs`} variant="secondary">
                                           {submission.status}
                                         </Badge>
                                       </div>

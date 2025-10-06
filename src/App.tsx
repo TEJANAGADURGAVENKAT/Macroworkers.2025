@@ -33,7 +33,6 @@ import WorkerProfile from "./pages/worker/WorkerProfile";
 import DocumentUpload from "./pages/worker/onboarding/DocumentUpload";
 import TaskDetail from "./pages/worker/TaskDetail";
 import InterviewSchedule from "./pages/worker/InterviewSchedule";
-import TestRedirect from "./pages/debug/TestRedirect";
 
 // Employer pages
 import EmployerDashboard from "./pages/employer/EmployerDashboard";
@@ -78,7 +77,12 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           <AuthProvider>
             <div className="min-h-screen bg-background">
               <Navigation />
@@ -144,7 +148,6 @@ function App() {
                     </InterviewStatusGuard>
                   </ProtectedRoute>
                 } />
-                <Route path="/debug/test-redirect" element={<TestRedirect />} />
 
                 {/* Employer Routes */}
                 <Route path="/employer" element={

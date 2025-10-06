@@ -32,6 +32,35 @@ import { useAuth } from "@/hooks/useAuth";
 import { getEmployeeRatingSummary } from "@/lib/employee-ratings-api";
 import { useToast } from "@/hooks/use-toast";
 
+// TypeScript interfaces for better type safety
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  budget: number;
+  category: string;
+  status: string;
+  created_at: string;
+  created_by: string;
+  requirements?: string;
+  max_workers?: number;
+  assigned_count?: number;
+  assignment_start_time?: string;
+  assignment_end_time?: string;
+  required_rating?: number;
+  role_category?: string;
+}
+
+interface TaskAssignment {
+  id: string;
+  task_id: string;
+  worker_id: string;
+  status: 'assigned' | 'working' | 'submitted' | 'completed';
+  assigned_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const WorkerJobs = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -40,7 +69,7 @@ const WorkerJobs = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [workerRating, setWorkerRating] = useState<number>(1.0);
   const [showRatingInfo, setShowRatingInfo] = useState(false);
   const [assigningTask, setAssigningTask] = useState<string | null>(null);
@@ -135,7 +164,14 @@ const WorkerJobs = () => {
   };
 
   const handleAssignTask = async (taskId: string) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to assign tasks.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setAssigningTask(taskId);
     
@@ -156,6 +192,16 @@ const WorkerJobs = () => {
         throw new Error("Task not found");
       }
 
+      // Validate worker eligibility (placeholder for future worker status checks)
+      if (profile?.worker_status && profile.worker_status !== 'active_employee') {
+        toast({
+          title: "Assignment Not Available",
+          description: "You need to complete your onboarding process before assigning tasks.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Check assignment time window
       if (task.assignment_start_time && task.assignment_end_time) {
         const now = new Date();
@@ -171,7 +217,7 @@ const WorkerJobs = () => {
         }
       }
 
-      // Check worker limit
+      // Check worker limit with explicit table reference
       if (task.max_workers && task.assigned_count >= task.max_workers) {
         toast({
           title: "Assignment Limit Reached",
@@ -181,7 +227,7 @@ const WorkerJobs = () => {
         return;
       }
 
-      // Create task assignment in both tables for compatibility
+      // Create task assignment with proper error handling
       console.log('Creating assignment with data:', {
         task_id: taskId,
         worker_id: user.id,
@@ -201,24 +247,42 @@ const WorkerJobs = () => {
 
       console.log('Assignment creation result:', { data: assignmentData, error: assignmentError });
 
-      if (assignmentError) throw assignmentError;
+      if (assignmentError) {
+        // Handle specific database errors
+        if (assignmentError.message.includes('max_assignees') || assignmentError.message.includes('ambiguous')) {
+          throw new Error("Database configuration error. Please contact support.");
+        }
+        if (assignmentError.message.includes('duplicate key')) {
+          throw new Error("You have already assigned yourself to this task.");
+        }
+        if (assignmentError.message.includes('Assignment limit exceeded')) {
+          throw new Error("This task has reached its maximum worker limit.");
+        }
+        throw assignmentError;
+      }
 
-      // Update local state
+      // Update local state immediately for optimistic UI
       setAssignedTasks(prev => new Set([...prev, taskId]));
 
+      // Show success toast with green styling
       toast({
         title: "Task Assigned Successfully",
         description: "You have successfully assigned yourself to this task. Check your tasks page to view it.",
       });
 
-      // Navigate to tasks page
-      navigate('/worker/tasks');
+      // Small delay to show success state before navigation
+      setTimeout(() => {
+        navigate('/worker/tasks');
+      }, 1000);
       
     } catch (err: any) {
       console.error('Error assigning task:', err);
+      
+      // Show specific error message
+      const errorMessage = err?.message || "Failed to assign task. Please try again.";
       toast({
         title: "Assignment Failed",
-        description: err?.message || "Failed to assign task. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -745,18 +809,20 @@ const WorkerJobs = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full"
-                            disabled={assigningTask === task.id}
+                            className="w-full transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={assigningTask === task.id || !canAccessTask(task)}
                             onClick={() => handleAssignTask(task.id)}
+                            aria-label={`Assign yourself to task: ${task.title}`}
+                            aria-describedby={`task-${task.id}-description`}
                           >
                             {assigningTask === task.id ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Assigning...
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                                <span aria-live="polite">Assigning...</span>
                               </>
                             ) : (
                               <>
-                                <UserPlus className="h-4 w-4 mr-2" />
+                                <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
                                 Assign Task
                               </>
                             )}
