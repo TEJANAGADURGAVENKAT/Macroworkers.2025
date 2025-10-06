@@ -175,6 +175,23 @@ const WorkerJobs = () => {
     
     setAssigningTask(taskId);
     
+    // Diagnostic: Check if user can access task_assignments table
+    console.log('User ID:', user.id);
+    console.log('User role:', profile?.role);
+    console.log('Task ID:', taskId);
+    
+    // Test if user can read from task_assignments table
+    try {
+      const { data: testData, error: testError } = await supabase
+        .from('task_assignments')
+        .select('id')
+        .limit(1);
+      
+      console.log('Task assignments table access test:', { data: testData, error: testError });
+    } catch (err) {
+      console.log('Task assignments table access failed:', err);
+    }
+    
     try {
       // Check if already assigned
       if (assignedTasks.has(taskId)) {
@@ -235,30 +252,75 @@ const WorkerJobs = () => {
       });
 
       // Create in task_assignments table (new system)
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from('task_assignments')
-        .insert({
-          task_id: taskId,
-          worker_id: user.id,
-          status: 'assigned'
-        })
-        .select()
-        .single();
+      // First try the new task_assignments table
+      let assignmentData = null;
+      let assignmentError = null;
+      
+      try {
+        const result = await supabase
+          .from('task_assignments')
+          .insert({
+            task_id: taskId,
+            worker_id: user.id,
+            status: 'assigned'
+          })
+          .select()
+          .single();
+        
+        assignmentData = result.data;
+        assignmentError = result.error;
+      } catch (err) {
+        console.log('Primary assignment method failed, trying fallback:', err);
+        
+        // Fallback: Try creating in task_submissions table for compatibility
+        const fallbackResult = await supabase
+          .from('task_submissions')
+          .insert({
+            task_id: taskId,
+            worker_id: user.id,
+            status: 'assigned',
+            proof_text: 'Task assigned by worker',
+            proof_type: 'text'
+          })
+          .select()
+          .single();
+        
+        assignmentData = fallbackResult.data;
+        assignmentError = fallbackResult.error;
+        
+        if (!assignmentError) {
+          console.log('Fallback assignment successful');
+        }
+      }
 
       console.log('Assignment creation result:', { data: assignmentData, error: assignmentError });
+      console.log('Full error details:', JSON.stringify(assignmentError, null, 2));
 
       if (assignmentError) {
+        console.error('Assignment error details:', {
+          message: assignmentError.message,
+          details: assignmentError.details,
+          hint: assignmentError.hint,
+          code: assignmentError.code
+        });
+        
         // Handle specific database errors
         if (assignmentError.message.includes('max_assignees') || assignmentError.message.includes('ambiguous')) {
           throw new Error("Database configuration error. Please contact support.");
         }
-        if (assignmentError.message.includes('duplicate key')) {
+        if (assignmentError.message.includes('duplicate key') || assignmentError.code === '23505') {
           throw new Error("You have already assigned yourself to this task.");
         }
         if (assignmentError.message.includes('Assignment limit exceeded')) {
           throw new Error("This task has reached its maximum worker limit.");
         }
-        throw assignmentError;
+        if (assignmentError.code === '42501') {
+          throw new Error("You don't have permission to assign this task. Please contact support.");
+        }
+        if (assignmentError.code === '23503') {
+          throw new Error("Invalid task or user reference. Please refresh and try again.");
+        }
+        throw new Error(assignmentError.message || "Failed to assign task. Please try again.");
       }
 
       // Update local state immediately for optimistic UI
