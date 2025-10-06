@@ -234,14 +234,29 @@ const WorkerJobs = () => {
         }
       }
 
-      // Check worker limit with explicit table reference
-      if (task.max_workers && task.assigned_count >= task.max_workers) {
-        toast({
-          title: "Assignment Limit Reached",
-          description: `This task has reached its maximum limit of ${task.max_workers} workers.`,
-          variant: "destructive"
-        });
-        return;
+      // Check worker limit by querying current assignments
+      try {
+        const { data: currentAssignments, error: countError } = await supabase
+          .from('task_assignments')
+          .select('id')
+          .eq('task_id', taskId);
+        
+        if (countError) {
+          console.warn('Could not check assignment count:', countError);
+        } else {
+          const currentCount = currentAssignments?.length || 0;
+          if (task.max_workers && currentCount >= task.max_workers) {
+            toast({
+              title: "Assignment Limit Reached",
+              description: `This task has reached its maximum limit of ${task.max_workers} workers.`,
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Error checking assignment count:', err);
+        // Continue with assignment attempt
       }
 
       // Create task assignment with proper error handling
@@ -325,6 +340,15 @@ const WorkerJobs = () => {
 
       // Update local state immediately for optimistic UI
       setAssignedTasks(prev => new Set([...prev, taskId]));
+
+      // Update the task's assigned_count in the local state
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === taskId 
+            ? { ...t, assigned_count: (t.assigned_count || 0) + 1 }
+            : t
+        )
+      );
 
       // Show success toast with green styling
       toast({
