@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -63,6 +64,20 @@ interface InterviewFormData {
 const InterviewScheduling = () => {
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  
+  // Check if employer is approved - redirect if not
+  useEffect(() => {
+    if (profile && profile.worker_status !== 'active_employee') {
+      toast({
+        title: "Access Restricted",
+        description: "Please complete document verification to access interview scheduling.",
+        variant: "destructive"
+      });
+      navigate('/employer/verify');
+    }
+  }, [profile, navigate, toast]);
+  
   const [workers, setWorkers] = useState<WorkerForInterview[]>([]);
   const [loading, setLoading] = useState(true);
   const [schedulingFor, setSchedulingFor] = useState<string | null>(null);
@@ -625,19 +640,14 @@ const InterviewScheduling = () => {
                               </AlertDescription>
                             </Alert>
                             
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className="bg-primary/10 text-primary border-primary hover:bg-primary/20"
-                                  onClick={() => setSchedulingFor(worker.user_id)}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Reschedule
-                                </Button>
-                              </DialogTrigger>
-                              <InterviewScheduleDialog />
-                            </Dialog>
+                            <Button
+                              variant="outline"
+                              className="bg-primary/10 text-primary border-primary hover:bg-primary/20"
+                              onClick={() => setSchedulingFor(worker.user_id)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Reschedule
+                            </Button>
                           </>
                         ) : worker.worker_status === 'active_employee' ? (
                           <Alert className="flex-1">
@@ -669,6 +679,9 @@ const InterviewScheduling = () => {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Schedule Interview</DialogTitle>
+          <DialogDescription>
+            Schedule an interview with the selected worker. Choose date, time, and mode of interview.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">

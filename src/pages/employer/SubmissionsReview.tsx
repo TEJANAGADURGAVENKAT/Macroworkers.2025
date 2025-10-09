@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,21 @@ interface Submission {
 
 const SubmissionsReview = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  
+  // Check if employer is approved - redirect if not
+  useEffect(() => {
+    if (profile && profile.worker_status !== 'active_employee') {
+      toast({
+        title: "Access Restricted",
+        description: "Please complete document verification to access submissions review.",
+        variant: "destructive"
+      });
+      navigate('/employer/verify');
+    }
+  }, [profile, navigate, toast]);
+  
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

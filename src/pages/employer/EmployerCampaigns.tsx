@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +24,24 @@ import {
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
 const EmployerCampaigns = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Check if employer is approved - redirect if not
+  useEffect(() => {
+    if (profile && profile.worker_status !== 'active_employee') {
+      toast({
+        title: "Access Restricted",
+        description: "Please complete document verification to access campaigns.",
+        variant: "destructive"
+      });
+      navigate('/employer/verify');
+    }
+  }, [profile, navigate, toast]);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);

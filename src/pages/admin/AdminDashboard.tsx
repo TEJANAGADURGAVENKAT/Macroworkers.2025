@@ -746,6 +746,7 @@ Check browser console for detailed logs.`);
             <TabsTrigger value="employers">Employers ({stats.totalEmployers})</TabsTrigger>
             <TabsTrigger value="workers">Workers ({stats.totalWorkers})</TabsTrigger>
             <TabsTrigger value="submissions">All Submissions ({stats.totalSubmissions})</TabsTrigger>
+            <TabsTrigger value="employer-verifications">Employer Verifications</TabsTrigger>
           </TabsList>
 
           {/* Tasks Tab */}
@@ -1102,6 +1103,35 @@ Check browser console for detailed logs.`);
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Employer Verifications Tab */}
+          <TabsContent value="employer-verifications" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Shield className="h-5 w-5" />
+                  <span>Employer Document Verification</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Employer Verification Management
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Review and approve employer document submissions to grant dashboard access.
+                  </p>
+                  <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                    <a href="/admin/employer-verifications">
+                      <Shield className="h-4 w-4 mr-2" />
+                      Manage Employer Verifications
+                    </a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

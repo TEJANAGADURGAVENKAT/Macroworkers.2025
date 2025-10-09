@@ -33,6 +33,8 @@ import WorkerProfile from "./pages/worker/WorkerProfile";
 import DocumentUpload from "./pages/worker/onboarding/DocumentUpload";
 import TaskDetail from "./pages/worker/TaskDetail";
 import InterviewSchedule from "./pages/worker/InterviewSchedule";
+import RaiseDispute from "./pages/worker/disputes/RaiseDispute";
+import MyDisputes from "./pages/worker/disputes/MyDisputes";
 
 // Employer pages
 import EmployerDashboard from "./pages/employer/EmployerDashboard";
@@ -43,6 +45,10 @@ import InterviewScheduling from "./pages/employer/InterviewScheduling";
 import SubmissionsReview from "./pages/employer/SubmissionsReview";
 import EmployerPayments from "./pages/employer/EmployerPayments";
 import EmployerTaskDetail from "./pages/employer/EmployerTaskDetail";
+import EmployerVerificationPage from "./pages/employer/EmployerVerificationPage";
+import DashboardLayout from "./pages/employer/DashboardLayout";
+import EmployerRaiseDispute from "./pages/employer/disputes/RaiseDispute";
+import EmployerMyDisputes from "./pages/employer/disputes/MyDisputes";
 
 // Blog pages
 import BlogList from "./pages/blog/BlogList";
@@ -57,9 +63,10 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminTaskDetail from "./pages/admin/AdminTaskDetail";
 import AdminTaskSubmissions from "./pages/admin/AdminTaskSubmissions";
-import AdminDisputes from "./pages/admin/AdminDisputes";
+import AdminDisputesPage from "./pages/admin/AdminDisputesPage";
 import AdminFinancials from "./pages/admin/AdminFinancials";
 import AdminProfile from "./pages/admin/AdminProfile";
+import AdminEmployerApprovalPage from "./pages/admin/AdminEmployerApprovalPage";
 import EmployerProfile from "./pages/employer/EmployerProfile";
 import TaskDetails from "./pages/employer/TaskDetails";
 import SubmissionDetail from "./pages/employer/SubmissionDetail";
@@ -134,6 +141,16 @@ function App() {
                     <WorkerProfile />
                   </ProtectedRoute>
                 } />
+                <Route path="/worker/disputes/raise" element={
+                  <ProtectedRoute allowedRoles={['worker']}>
+                    <RaiseDispute />
+                  </ProtectedRoute>
+                } />
+                <Route path="/worker/disputes" element={
+                  <ProtectedRoute allowedRoles={['worker']}>
+                    <MyDisputes />
+                  </ProtectedRoute>
+                } />
                 <Route path="/worker/task/:id" element={
                   <ProtectedRoute allowedRoles={['worker']}>
                     <WorkerStatusGuard requiresTaskSubmission={true}>
@@ -152,57 +169,100 @@ function App() {
                 {/* Employer Routes */}
                 <Route path="/employer" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <EmployerDashboard />
+                    <DashboardLayout>
+                      <EmployerDashboard />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/campaigns" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <EmployerCampaigns />
+                    <DashboardLayout>
+                      <EmployerCampaigns />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/create-task" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <CreateTask />
+                    <DashboardLayout>
+                      <CreateTask />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/role-based-tasks" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <RoleBasedTasks />
+                    <DashboardLayout>
+                      <RoleBasedTasks />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/worker-verification" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <WorkerVerification />
+                    <DashboardLayout>
+                      <WorkerVerification />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/interview-scheduling" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <InterviewScheduling />
+                    <DashboardLayout>
+                      <InterviewScheduling />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/submissions" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <SubmissionsReview />
+                    <DashboardLayout>
+                      <SubmissionsReview />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/submissions/:id" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <SubmissionDetail />
+                    <DashboardLayout>
+                      <SubmissionDetail />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/payments" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <EmployerPayments />
+                    <DashboardLayout>
+                      <EmployerPayments />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/task/:id" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <TaskDetails />
+                    <DashboardLayout>
+                      <TaskDetails />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/employer/profile" element={
                   <ProtectedRoute allowedRoles={['employer']}>
-                    <EmployerProfile />
+                    <DashboardLayout>
+                      <EmployerProfile />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/employer/verify" element={
+                  <ProtectedRoute allowedRoles={['employer']}>
+                    <DashboardLayout>
+                      <EmployerVerificationPage />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/employer/disputes/raise" element={
+                  <ProtectedRoute allowedRoles={['employer']}>
+                    <DashboardLayout>
+                      <EmployerRaiseDispute />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/employer/disputes" element={
+                  <ProtectedRoute allowedRoles={['employer']}>
+                    <DashboardLayout>
+                      <EmployerMyDisputes />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 } />
 
@@ -238,7 +298,7 @@ function App() {
                 } />
                 <Route path="/admin/disputes" element={
                   <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDisputes />
+                    <AdminDisputesPage />
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/financials" element={
@@ -249,6 +309,11 @@ function App() {
                 <Route path="/admin/profile" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AdminProfile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/employer-verifications" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminEmployerApprovalPage />
                   </ProtectedRoute>
                 } />
 

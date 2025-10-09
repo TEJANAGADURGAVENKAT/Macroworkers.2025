@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload Debug</title>
+</head>
+<body>
+    <h1>File Upload Debug Test</h1>
+    <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
+    <div id="output"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const output = document.getElementById('output');
+                output.innerHTML = `
+                    <h3>File Details:</h3>
+                    <p><strong>Name:</strong> ${file.name}</p>
+                    <p><strong>Type:</strong> ${file.type}</p>
+                    <p><strong>Size:</strong> ${file.size} bytes</p>
+                    <p><strong>Extension:</strong> .${file.name.split('.').pop()}</p>
+                    <p><strong>Last Modified:</strong> ${new Date(file.lastModified)}</p>
+                `;
+                
+                console.log('File details:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    lastModified: file.lastModified
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+

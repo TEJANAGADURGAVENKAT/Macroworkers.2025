@@ -121,6 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, fullName: string, role: 'employer' | 'worker', phone: string, category?: string) => {
     try {
+      console.log('Starting registration for:', email, 'role:', role);
+      
       const redirectUrl = `${window.location.origin}/`;
       
       const { data, error } = await supabase.auth.signUp({
@@ -132,29 +134,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: fullName,
             role: role,
             phone: phone,
-            category: category
+            category: category,
+            email: email // Explicitly include email in metadata
           }
         }
       });
 
+      // If signup succeeds but email is null, try to update it
+      if (!error && data.user && !data.user.email) {
+        console.log('User created but email is null, attempting to update...');
+        try {
+          const { error: updateError } = await supabase.auth.updateUser({
+            email: email
+          });
+          if (updateError) {
+            console.error('Failed to update email:', updateError);
+          } else {
+            console.log('Email updated successfully');
+          }
+        } catch (updateErr) {
+          console.error('Error updating email:', updateErr);
+        }
+      }
+
+      // Check if user was created successfully
+      if (!error && data.user) {
+        console.log('✅ User created successfully with ID:', data.user.id);
+        console.log('📧 User email:', data.user.email);
+        
+        // Create profile manually after successful user creation
+        try {
+          const profileData = {
+            user_id: data.user.id,
+            full_name: fullName,
+            role: role,
+            phone: phone || '',
+            email: data.user.email || email,
+            category: category || null,
+            rating: role === 'employer' ? 3.00 : 1.00,
+            worker_status: role === 'employer' ? 'verification_pending' : 'document_upload_pending',
+            status: role === 'employer' ? 'verification_pending' : 'document_upload_pending'
+          };
+          
+          console.log('📝 Creating profile with data:', profileData);
+          
+          const { data: profileResult, error: profileError } = await supabase
+            .from('profiles')
+            .insert(profileData)
+            .select()
+            .single();
+          
+          if (profileError) {
+            console.error('❌ Profile creation error:', profileError);
+            // Still show success for user creation, profile can be created later
+          } else {
+            console.log('✅ Profile created successfully:', profileResult);
+          }
+        } catch (profileErr) {
+          console.error('❌ Failed to create profile:', profileErr);
+          // Still show success for user creation
+        }
+      }
+
       if (error) {
+        console.error('Registration error:', error);
         toast({
           title: "Registration failed",
           description: error.message,
           variant: "destructive"
         });
+        return { error };
       } else if (data.user) {
-        // Create profile in profiles table
+        console.log('User created successfully:', data.user.id);
+        
+        // The profile should be created automatically by the database trigger
+        // But let's also try to create it manually as a backup
         try {
           const profileData = createSafeProfileData({
             user_id: data.user.id,
             full_name: fullName,
             role: role,
             phone: phone,
-            email: data.user.email,
+            email: data.user.email || email, // Use email from signup if user.email is null
             category: category,
-            rating: role === 'worker' ? 1.00 : 3.00 // New workers start with 1.00 rating
+            rating: role === 'worker' ? 1.00 : 3.00, // New workers start with 1.00 rating
+            worker_status: role === 'employer' ? 'verification_pending' : 'document_upload_pending',
+            status: role === 'employer' ? 'verification_pending' : 'document_upload_pending'
           });
+          
+          console.log('Creating profile with data:', profileData);
           
           const { error: profileError } = await supabase
             .from('profiles')
@@ -167,9 +235,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: fullName,
               role: role,
               phone: phone,
-              email: data.user.email,
-              category: category
+              email: data.user.email || email, // Use email from signup if user.email is null
+              category: category,
+              worker_status: role === 'employer' ? 'verification_pending' : 'document_upload_pending',
+              status: role === 'employer' ? 'verification_pending' : 'document_upload_pending'
             });
+            
+            console.log('Trying to update profile with data:', updateData);
             
             const { error: updateError } = await supabase
               .from('profiles')
@@ -178,7 +250,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (updateError) {
               console.error('Profile update error:', updateError);
+            } else {
+              console.log('Profile updated successfully');
             }
+          } else {
+            console.log('Profile created successfully');
           }
         } catch (profileErr) {
           console.error('Failed to create profile:', profileErr);
@@ -186,8 +262,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         toast({
           title: "Registration successful!",
-          description: "Please check your email to verify your account.",
+          description: role === 'employer' 
+            ? "Please check your email to verify your account. You will be redirected to document verification."
+            : "Please check your email to verify your account.",
         });
+        
+        return { error: null };
       }
 
       return { error };
@@ -204,17 +284,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting to sign in with email:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
           description: error.message,
           variant: "destructive"
         });
+      } else {
+        console.log('Sign in successful:', data);
       }
 
       return { error };

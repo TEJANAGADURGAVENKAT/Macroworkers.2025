@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +100,7 @@ interface Submission {
 const EmployerDashboard = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
@@ -136,10 +137,16 @@ const EmployerDashboard = () => {
   ];
 
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
+      // Check if employer is approved
+      if (profile.worker_status !== 'active_employee') {
+        // Redirect to verification status page if not approved
+        navigate('/employer/verify');
+        return;
+      }
       loadDashboardData();
     }
-  }, [user]);
+  }, [user, profile, navigate]);
 
   const loadDashboardData = async () => {
     if (!user) return;

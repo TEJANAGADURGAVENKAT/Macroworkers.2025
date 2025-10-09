@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -157,6 +157,19 @@ const RoleBasedTasks = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  
+  // Check if employer is approved - redirect if not
+  useEffect(() => {
+    if (profile && profile.worker_status !== 'active_employee') {
+      toast({
+        title: "Access Restricted",
+        description: "Please complete document verification to access role-based tasks.",
+        variant: "destructive"
+      });
+      navigate('/employer/verify');
+    }
+  }, [profile, navigate, toast]);
+  
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -1433,6 +1446,9 @@ const RoleBasedTasks = () => {
                 <Plus className="w-5 h-5" />
                 <span>Create {selectedRole?.name} Task</span>
               </DialogTitle>
+              <DialogDescription>
+                Create a specialized task for {selectedRole?.name} role. Fill in the details and requirements for this position.
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-6">

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +30,7 @@ import {
   User
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { useSkillsByCategory } from '@/hooks/useSubcategories';
 
 interface Worker {
@@ -48,6 +48,19 @@ const CreateTask = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  
+  // Check if employer is approved - redirect if not
+  useEffect(() => {
+    if (profile && profile.worker_status !== 'active_employee') {
+      toast({
+        title: "Access Restricted",
+        description: "Please complete document verification to create tasks.",
+        variant: "destructive"
+      });
+      navigate('/employer/verify');
+    }
+  }, [profile, navigate, toast]);
+  
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
   const [isSubmitting, setIsSubmitting] = useState(false);

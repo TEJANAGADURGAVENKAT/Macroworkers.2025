@@ -94,6 +94,8 @@ const Register = () => {
         // Registration successful - redirect based on user type
         if (formData.userType === 'worker') {
           navigate('/worker/onboarding/documents');
+        } else if (formData.userType === 'employer') {
+          navigate('/employer/verify');
         } else {
           navigate('/signin');
         }

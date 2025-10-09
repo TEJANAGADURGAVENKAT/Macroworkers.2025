@@ -74,6 +74,32 @@ const WorkerJobs = () => {
   const [showRatingInfo, setShowRatingInfo] = useState(false);
   const [assigningTask, setAssigningTask] = useState<string | null>(null);
   const [assignedTasks, setAssignedTasks] = useState<Set<string>>(new Set());
+  const [taskSlotCounts, setTaskSlotCounts] = useState<Record<string, number>>({});
+
+  // Load slot counts for all tasks
+  const loadTaskSlotCounts = async (taskIds: string[]) => {
+    try {
+      const { data: assignments, error } = await supabase
+        .from('task_assignments')
+        .select('task_id')
+        .in('task_id', taskIds);
+
+      if (error) {
+        console.error('Error loading slot counts:', error);
+        return;
+      }
+
+      // Count assignments per task
+      const counts: Record<string, number> = {};
+      assignments?.forEach(assignment => {
+        counts[assignment.task_id] = (counts[assignment.task_id] || 0) + 1;
+      });
+
+      setTaskSlotCounts(counts);
+    } catch (error) {
+      console.error('Error loading slot counts:', error);
+    }
+  };
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -121,6 +147,12 @@ const WorkerJobs = () => {
         }, {} as Record<string, number>));
         
         setTasks(data || []);
+        
+        // Load slot counts for all tasks
+        if (data && data.length > 0) {
+          const taskIds = data.map(task => task.id);
+          await loadTaskSlotCounts(taskIds);
+        }
 
         // Load already assigned tasks
         await loadAssignedTasks();
@@ -175,23 +207,6 @@ const WorkerJobs = () => {
     
     setAssigningTask(taskId);
     
-    // Diagnostic: Check if user can access task_assignments table
-    console.log('User ID:', user.id);
-    console.log('User role:', profile?.role);
-    console.log('Task ID:', taskId);
-    
-    // Test if user can read from task_assignments table
-    try {
-      const { data: testData, error: testError } = await supabase
-        .from('task_assignments')
-        .select('id')
-        .limit(1);
-      
-      console.log('Task assignments table access test:', { data: testData, error: testError });
-    } catch (err) {
-      console.log('Task assignments table access failed:', err);
-    }
-    
     try {
       // Check if already assigned
       if (assignedTasks.has(taskId)) {
@@ -206,10 +221,15 @@ const WorkerJobs = () => {
       // Get task details to check constraints
       const task = tasks.find(t => t.id === taskId);
       if (!task) {
-        throw new Error("Task not found");
+        toast({
+          title: "Task Not Found",
+          description: "The task you're trying to assign no longer exists.",
+          variant: "destructive"
+        });
+        return;
       }
 
-      // Validate worker eligibility (placeholder for future worker status checks)
+      // Validate worker eligibility
       if (profile?.worker_status && profile.worker_status !== 'active_employee') {
         toast({
           title: "Assignment Not Available",
@@ -234,29 +254,33 @@ const WorkerJobs = () => {
         }
       }
 
-      // Check worker limit by querying current assignments
-      try {
-        const { data: currentAssignments, error: countError } = await supabase
-          .from('task_assignments')
-          .select('id')
-          .eq('task_id', taskId);
-        
-        if (countError) {
-          console.warn('Could not check assignment count:', countError);
-        } else {
-          const currentCount = currentAssignments?.length || 0;
-          if (task.max_workers && currentCount >= task.max_workers) {
-            toast({
-              title: "Assignment Limit Reached",
-              description: `This task has reached its maximum limit of ${task.max_workers} workers.`,
-              variant: "destructive"
-            });
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn('Error checking assignment count:', err);
-        // Continue with assignment attempt
+      // Check current assignment count from database
+      const { data: currentAssignments, error: countError } = await supabase
+        .from('task_assignments')
+        .select('id')
+        .eq('task_id', taskId);
+
+      if (countError) {
+        console.error('Error checking assignment count:', countError);
+        toast({
+          title: "Assignment Check Failed",
+          description: "Could not verify task availability. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const currentCount = currentAssignments?.length || 0;
+      const maxSlots = task.max_workers || task.slots || 1;
+
+      // Check if slots are full
+      if (currentCount >= maxSlots) {
+        toast({
+          title: "Slots Full!",
+          description: `This task has reached its maximum limit of ${maxSlots} workers.`,
+          variant: "destructive"
+        });
+        return;
       }
 
       // Create task assignment with proper error handling
@@ -266,109 +290,78 @@ const WorkerJobs = () => {
         status: 'assigned'
       });
 
-      // Create in task_assignments table (new system)
-      // First try the new task_assignments table
-      let assignmentData = null;
-      let assignmentError = null;
-      
-      try {
-        const result = await supabase
-          .from('task_assignments')
-          .insert({
-            task_id: taskId,
-            worker_id: user.id,
-            status: 'assigned'
-          })
-          .select()
-          .single();
-        
-        assignmentData = result.data;
-        assignmentError = result.error;
-      } catch (err) {
-        console.log('Primary assignment method failed, trying fallback:', err);
-        
-        // Fallback: Try creating in task_submissions table for compatibility
-        const fallbackResult = await supabase
-          .from('task_submissions')
-          .insert({
-            task_id: taskId,
-            worker_id: user.id,
-            status: 'assigned',
-            proof_text: 'Task assigned by worker',
-            proof_type: 'text'
-          })
-          .select()
-          .single();
-        
-        assignmentData = fallbackResult.data;
-        assignmentError = fallbackResult.error;
-        
-        if (!assignmentError) {
-          console.log('Fallback assignment successful');
-        }
-      }
+      // Create in task_assignments table
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('task_assignments')
+        .insert({
+          task_id: taskId,
+          worker_id: user.id,
+          status: 'assigned',
+          assigned_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
       console.log('Assignment creation result:', { data: assignmentData, error: assignmentError });
-      console.log('Full error details:', JSON.stringify(assignmentError, null, 2));
 
       if (assignmentError) {
-        console.error('Assignment error details:', {
-          message: assignmentError.message,
-          details: assignmentError.details,
-          hint: assignmentError.hint,
-          code: assignmentError.code
-        });
+        console.error('Detailed assignment error:', assignmentError);
         
-        // Handle specific database errors
-        if (assignmentError.message.includes('max_assignees') || assignmentError.message.includes('ambiguous')) {
-          throw new Error("Database configuration error. Please contact support.");
+        // Handle specific database errors with user-friendly messages
+        if (assignmentError.code === '23505') { // Unique constraint violation
+          toast({
+            title: "Already Assigned",
+            description: "You have already assigned yourself to this task.",
+            variant: "destructive"
+          });
+          return;
         }
-        if (assignmentError.message.includes('duplicate key') || assignmentError.code === '23505') {
-          throw new Error("You have already assigned yourself to this task.");
+        
+        if (assignmentError.code === '23503') { // Foreign key constraint violation
+          toast({
+            title: "Assignment Failed",
+            description: "Task or worker information is invalid. Please refresh and try again.",
+            variant: "destructive"
+          });
+          return;
         }
-        if (assignmentError.message.includes('Assignment limit exceeded')) {
-          throw new Error("This task has reached its maximum worker limit.");
-        }
-        if (assignmentError.code === '42501') {
-          throw new Error("You don't have permission to assign this task. Please contact support.");
-        }
-        if (assignmentError.code === '23503') {
-          throw new Error("Invalid task or user reference. Please refresh and try again.");
-        }
-        throw new Error(assignmentError.message || "Failed to assign task. Please try again.");
+
+        // Show the actual error for debugging
+        toast({
+          title: "Assignment Failed",
+          description: `Error: ${assignmentError.message || 'Unknown error'}`,
+          variant: "destructive"
+        });
+        return;
       }
 
       // Update local state immediately for optimistic UI
       setAssignedTasks(prev => new Set([...prev, taskId]));
+      
+      // Update slot count for this task
+      setTaskSlotCounts(prev => ({
+        ...prev,
+        [taskId]: (prev[taskId] || 0) + 1
+      }));
 
-      // Update the task's assigned_count in the local state
-      setTasks(prevTasks => 
-        prevTasks.map(t => 
-          t.id === taskId 
-            ? { ...t, assigned_count: (t.assigned_count || 0) + 1 }
-            : t
-        )
-      );
-
-      // Show success toast with green styling
+      // Show success toast
       toast({
-        title: "Task Assigned Successfully",
-        description: "You have successfully assigned yourself to this task. Check your tasks page to view it.",
+        title: "Task Assigned Successfully!",
+        description: "You have successfully assigned yourself to this task.",
       });
 
-      // Small delay to show success state before navigation
+      // Redirect to work on task page after a short delay
       setTimeout(() => {
-        navigate('/worker/tasks');
-      }, 1000);
+        navigate(`/worker/task/${taskId}`);
+      }, 1500);
       
     } catch (err: any) {
       console.error('Error assigning task:', err);
       
-      // Show specific error message
-      const errorMessage = err?.message || "Failed to assign task. Please try again.";
+      // Handle network or unexpected errors
       toast({
         title: "Assignment Failed",
-        description: errorMessage,
+        description: "Could not assign task. Please check your connection and try again.",
         variant: "destructive"
       });
     } finally {
@@ -381,6 +374,20 @@ const WorkerJobs = () => {
     tasks.forEach((t) => t.category && set.add(t.category));
     return [{ value: "all", label: "All Categories" }, ...Array.from(set).map((c) => ({ value: c, label: c }))];
   }, [tasks]);
+
+  // Helper function to check if task has available slots
+  const hasAvailableSlots = (task: Task) => {
+    const currentCount = taskSlotCounts[task.id] || 0;
+    const maxSlots = task.max_workers || task.slots || 1;
+    return currentCount < maxSlots;
+  };
+
+  // Helper function to get available slots count
+  const getAvailableSlots = (task: Task) => {
+    const currentCount = taskSlotCounts[task.id] || 0;
+    const maxSlots = task.max_workers || task.slots || 1;
+    return Math.max(0, maxSlots - currentCount);
+  };
 
   const filteredTasks = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -892,27 +899,54 @@ const WorkerJobs = () => {
                             </Link>
                           </Button>
                         ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={assigningTask === task.id || !canAccessTask(task)}
-                            onClick={() => handleAssignTask(task.id)}
-                            aria-label={`Assign yourself to task: ${task.title}`}
-                            aria-describedby={`task-${task.id}-description`}
-                          >
-                            {assigningTask === task.id ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-                                <span aria-live="polite">Assigning...</span>
-                              </>
-                            ) : (
-                              <>
-                                <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
-                                Assign Task
-                              </>
-                            )}
-                          </Button>
+                          <div className="space-y-2">
+                            {/* Slot availability indicator */}
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">
+                                Slots: {getAvailableSlots(task)} of {task.max_workers || task.slots || 1} available
+                              </span>
+                              {!hasAvailableSlots(task) && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Slots Full
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <Button
+                              variant={hasAvailableSlots(task) ? "outline" : "secondary"}
+                              size="sm"
+                              className={`w-full transition-all duration-200 ${
+                                hasAvailableSlots(task) 
+                                  ? "hover:scale-105" 
+                                  : "opacity-50 cursor-not-allowed"
+                              }`}
+                              disabled={
+                                assigningTask === task.id || 
+                                !canAccessTask(task) || 
+                                !hasAvailableSlots(task)
+                              }
+                              onClick={() => handleAssignTask(task.id)}
+                              aria-label={`Assign yourself to task: ${task.title}`}
+                              aria-describedby={`task-${task.id}-description`}
+                            >
+                              {assigningTask === task.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                                  <span aria-live="polite">Assigning...</span>
+                                </>
+                              ) : !hasAvailableSlots(task) ? (
+                                <>
+                                  <AlertCircle className="h-4 w-4 mr-2" aria-hidden="true" />
+                                  Slots Full
+                                </>
+                              ) : (
+                                <>
+                                  <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
+                                  Assign Task
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         )
                       )}
                       

@@ -17,12 +17,12 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import {
+import { 
   Users,
   Briefcase,
   DollarSign,
-  TrendingUp,
-  Clock,
+  TrendingUp, 
+  Clock, 
   CheckCircle,
   AlertTriangle,
   Activity,
@@ -32,7 +32,8 @@ import {
   Star,
   Calendar,
   MessageSquare,
-  UserCheck
+  UserCheck,
+  AlertCircle
 } from "lucide-react";
 import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
@@ -75,13 +76,15 @@ const WorkerDashboard = () => {
     { title: "Find Jobs", url: "/worker/jobs", icon: Briefcase },
     { title: "My Tasks", url: "/worker/tasks", icon: FileText },
     { title: "Earnings", url: "/worker/earnings", icon: DollarSign },
+    { title: "Raise Dispute", url: "/worker/disputes/raise", icon: AlertCircle },
+    { title: "My Disputes", url: "/worker/disputes", icon: MessageSquare },
     { title: "Profile", url: "/worker/profile", icon: User },
   ];
 
   // Realtime subscription for profile status changes
   useEffect(() => {
     if (!user) return;
-
+    
     console.log('Setting up realtime subscription for user:', user.id);
 
     const channel = supabase
@@ -382,7 +385,7 @@ const WorkerDashboard = () => {
               </div>
               <Badge variant="outline" className="text-sm">
                 {getDesignationLabel(ratingData.designation)}
-              </Badge>
+                </Badge>
             </div>
 
             {loading ? (
@@ -410,7 +413,7 @@ const WorkerDashboard = () => {
 
                 {/* Stats Grid - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {statsCards.map((stat) => (
                     <motion.div
                       key={stat.label}
@@ -435,12 +438,12 @@ const WorkerDashboard = () => {
                       </Card>
                     </motion.div>
                   ))}
-                  </div>
+                </div>
                 )}
 
                 {/* Dashboard Tabs - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
-                  <Tabs defaultValue="overview" className="w-full">
+                <Tabs defaultValue="overview" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="ratings">My Ratings</TabsTrigger>
@@ -475,8 +478,8 @@ const WorkerDashboard = () => {
                                     </p>
                                   </div>
                                   <Badge variant={task.status === 'approved' ? 'default' : 'secondary'}>
-                                    {task.status}
-                                  </Badge>
+                                      {task.status}
+                                    </Badge>
                                 </div>
                               ))
                             )}
@@ -494,14 +497,14 @@ const WorkerDashboard = () => {
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Tasks Completed</span>
                               <span className="font-semibold">{weeklyStats.tasksCompleted}</span>
-                            </div>
+                              </div>
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Earnings</span>
                               <span className="font-semibold text-success">{formatINR(weeklyStats.earnings)}</span>
-                            </div>
+                              </div>
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Avg per Task</span>
-                              <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
+                                <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
                             </div>
                           </CardContent>
                         </Card>
@@ -513,17 +516,17 @@ const WorkerDashboard = () => {
                     <div className="grid lg:grid-cols-2 gap-6">
                       {/* Rating Summary */}
                       <Card>
-                        <CardHeader>
+                            <CardHeader>
                           <CardTitle>Rating Summary</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Average Rating</span>
-                            <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-2">
                               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                               <span className="font-semibold">{ratingData.averageRating.toFixed(1)}</span>
-                            </div>
-                          </div>
+                              </div>
+                              </div>
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Total Ratings</span>
                             <span className="font-semibold">{ratingData.totalRatings}</span>
@@ -532,17 +535,17 @@ const WorkerDashboard = () => {
                             <span className="text-sm text-muted-foreground">Designation</span>
                             <Badge variant="outline" className={getDesignationColor(ratingData.designation)}>
                               {getDesignationLabel(ratingData.designation)}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
+                                </Badge>
+                              </div>
+                            </CardContent>
+                          </Card>
 
                       {/* Recent Ratings */}
-                      <Card>
-                        <CardHeader>
+                          <Card>
+                            <CardHeader>
                           <CardTitle>Recent Ratings</CardTitle>
-                        </CardHeader>
-                        <CardContent>
+                            </CardHeader>
+                            <CardContent>
                           {ratingData.recentRatings.length === 0 ? (
                             <p className="text-muted-foreground text-center py-4">No ratings yet.</p>
                           ) : (
@@ -557,19 +560,19 @@ const WorkerDashboard = () => {
                                     {formatTimeAgo(rating.created_at)}
                                   </span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
                     </div>
                   </TabsContent>
-                  </Tabs>
+                </Tabs>
                 )}
 
                 {/* Additional dashboard content - only show for active employees */}
                 {profile?.worker_status === 'active_employee' && (
-                  <div className="grid lg:grid-cols-3 gap-6">
+                <div className="grid lg:grid-cols-3 gap-6">
                   {/* Recent Tasks */}
                   <div className="lg:col-span-2">
                     <Card>
@@ -597,8 +600,8 @@ const WorkerDashboard = () => {
                                 </p>
                               </div>
                               <Badge variant={task.status === 'approved' ? 'default' : 'secondary'}>
-                                {task.status}
-                              </Badge>
+                                  {task.status}
+                                </Badge>
                             </div>
                           ))
                         )}
@@ -616,19 +619,19 @@ const WorkerDashboard = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Tasks Completed</span>
                           <span className="font-semibold">{weeklyStats.tasksCompleted}</span>
-                        </div>
+                          </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Earnings</span>
                           <span className="font-semibold text-success">{formatINR(weeklyStats.earnings)}</span>
-                        </div>
+                          </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Avg per Task</span>
-                          <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
+                            <span className="font-semibold text-success">{formatINR(weeklyStats.averagePerTask)}</span>
                         </div>
                       </CardContent>
                     </Card>
-                    </div>
                   </div>
+                </div>
                 )}
               </>
             )}

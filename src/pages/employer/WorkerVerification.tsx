@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -48,6 +49,20 @@ interface WorkerWithDocuments {
 const WorkerVerification = () => {
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  
+  // Check if employer is approved - redirect if not
+  useEffect(() => {
+    if (profile && profile.worker_status !== 'active_employee') {
+      toast({
+        title: "Access Restricted",
+        description: "Please complete document verification to access worker verification.",
+        variant: "destructive"
+      });
+      navigate('/employer/verify');
+    }
+  }, [profile, navigate, toast]);
+  
   const [workers, setWorkers] = useState<WorkerWithDocuments[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingDocument, setProcessingDocument] = useState<string | null>(null);
@@ -432,6 +447,9 @@ const WorkerVerification = () => {
             <DialogContent className="max-w-4xl max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>Document Preview</DialogTitle>
+                <DialogDescription>
+                  Preview the uploaded document before making a verification decision.
+                </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-auto">
                 <iframe
