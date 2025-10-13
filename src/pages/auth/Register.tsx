@@ -43,6 +43,8 @@ const Register = () => {
     password: "",
     confirmPassword: "",
     category: "",
+    companyName: "",
+    cinNumber: "",
     agreeToTerms: false
   });
   const [errors, setErrors] = useState({
@@ -87,7 +89,9 @@ const Register = () => {
         fullName, 
         formData.userType,
         formData.phone,
-        formData.category
+        formData.category,
+        formData.companyName,
+        formData.cinNumber
       );
 
       if (!error) {
@@ -132,6 +136,12 @@ const Register = () => {
     // Category is mandatory for workers
     if (formData.userType === 'worker' && !formData.category) {
       missingFields.push('category');
+    }
+    
+    // Company Name and CIN Number are mandatory for employers
+    if (formData.userType === 'employer') {
+      if (!formData.companyName) missingFields.push('companyName');
+      if (!formData.cinNumber) missingFields.push('cinNumber');
     }
     
     if (missingFields.length > 0) {
@@ -362,6 +372,44 @@ const Register = () => {
                     </div>
                   )}
 
+                  {formData.userType === 'employer' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="companyName">
+                          Company Name <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                          <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                          <Input
+                            id="companyName"
+                            placeholder="Your Company Pvt Ltd"
+                            className="pl-10"
+                            value={formData.companyName}
+                            onChange={(e) => handleInputChange('companyName', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="cinNumber">
+                          CIN Number <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="cinNumber"
+                          placeholder="U12345AB2020PTC123456"
+                          value={formData.cinNumber}
+                          onChange={(e) => handleInputChange('cinNumber', e.target.value.toUpperCase())}
+                          maxLength={21}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Corporate Identification Number (21 characters)
+                        </p>
+                      </div>
+                    </>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="password">
                       Create Password <span className="text-red-500">*</span>
@@ -452,7 +500,7 @@ const Register = () => {
                   type="submit" 
                   className="flex-1 bg-gradient-primary hover:bg-primary-dark"
                   size="lg"
-                  disabled={isSubmitting || (currentStep === 2 && (!formData.email || !formData.password || !formData.firstName || !formData.lastName || !formData.phone || (formData.userType === 'worker' && !formData.category)))}
+                  disabled={isSubmitting || (currentStep === 2 && (!formData.email || !formData.password || !formData.firstName || !formData.lastName || !formData.phone || (formData.userType === 'worker' && !formData.category) || (formData.userType === 'employer' && (!formData.companyName || !formData.cinNumber))))}
                 >
                   {isSubmitting ? "Creating Account..." : currentStep === 1 ? "Continue" : "Create Account"}
                 </Button>

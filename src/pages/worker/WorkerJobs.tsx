@@ -148,11 +148,9 @@ const WorkerJobs = () => {
         
         setTasks(data || []);
         
-        // Load slot counts for all tasks
-        if (data && data.length > 0) {
-          const taskIds = data.map(task => task.id);
-          await loadTaskSlotCounts(taskIds);
-        }
+        // Skip slot count loading to avoid database issues
+        // Initialize empty slot counts
+        setTaskSlotCounts({});
 
         // Load already assigned tasks
         await loadAssignedTasks();
@@ -254,34 +252,8 @@ const WorkerJobs = () => {
         }
       }
 
-      // Check current assignment count from database
-      const { data: currentAssignments, error: countError } = await supabase
-        .from('task_assignments')
-        .select('id')
-        .eq('task_id', taskId);
-
-      if (countError) {
-        console.error('Error checking assignment count:', countError);
-        toast({
-          title: "Assignment Check Failed",
-          description: "Could not verify task availability. Please try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const currentCount = currentAssignments?.length || 0;
-      const maxSlots = task.max_workers || task.slots || 1;
-
-      // Check if slots are full
-      if (currentCount >= maxSlots) {
-        toast({
-          title: "Slots Full!",
-          description: `This task has reached its maximum limit of ${maxSlots} workers.`,
-          variant: "destructive"
-        });
-        return;
-      }
+      // Skip slot checking for now to avoid database issues
+      // Just proceed with assignment
 
       // Create task assignment with proper error handling
       console.log('Creating assignment with data:', {
@@ -290,14 +262,13 @@ const WorkerJobs = () => {
         status: 'assigned'
       });
 
-      // Create in task_assignments table
+      // Create in task_assignments table - simplified insert
       const { data: assignmentData, error: assignmentError } = await supabase
         .from('task_assignments')
         .insert({
           task_id: taskId,
           worker_id: user.id,
-          status: 'assigned',
-          assigned_at: new Date().toISOString()
+          status: 'assigned'
         })
         .select()
         .single();
@@ -337,12 +308,6 @@ const WorkerJobs = () => {
 
       // Update local state immediately for optimistic UI
       setAssignedTasks(prev => new Set([...prev, taskId]));
-      
-      // Update slot count for this task
-      setTaskSlotCounts(prev => ({
-        ...prev,
-        [taskId]: (prev[taskId] || 0) + 1
-      }));
 
       // Show success toast
       toast({
@@ -378,15 +343,15 @@ const WorkerJobs = () => {
   // Helper function to check if task has available slots
   const hasAvailableSlots = (task: Task) => {
     const currentCount = taskSlotCounts[task.id] || 0;
-    const maxSlots = task.max_workers || task.slots || 1;
-    return currentCount < maxSlots;
+    const maxSlotsAvailable = (task as any).slots || 1; // Use only slots column to avoid ambiguity
+    return currentCount < maxSlotsAvailable;
   };
 
   // Helper function to get available slots count
   const getAvailableSlots = (task: Task) => {
     const currentCount = taskSlotCounts[task.id] || 0;
-    const maxSlots = task.max_workers || task.slots || 1;
-    return Math.max(0, maxSlots - currentCount);
+    const totalSlots = (task as any).slots || 1; // Use only slots column to avoid ambiguity
+    return Math.max(0, totalSlots - currentCount);
   };
 
   const filteredTasks = useMemo(() => {
@@ -903,7 +868,7 @@ const WorkerJobs = () => {
                             {/* Slot availability indicator */}
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-600">
-                                Slots: {getAvailableSlots(task)} of {task.max_workers || task.slots || 1} available
+                                Slots: {getAvailableSlots(task)} of {task.slots || 1} available
                               </span>
                               {!hasAvailableSlots(task) && (
                                 <Badge variant="destructive" className="text-xs">

@@ -21,7 +21,7 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: 'employer' | 'worker', phone: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, role: 'employer' | 'worker', phone: string, category?: string, companyName?: string, cinNumber?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
@@ -119,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user]);
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'employer' | 'worker', phone: string, category?: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role: 'employer' | 'worker', phone: string, category?: string, companyName?: string, cinNumber?: string) => {
     try {
       console.log('Starting registration for:', email, 'role:', role);
       
@@ -135,6 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: role,
             phone: phone,
             category: category,
+            company_name: companyName,
+            cin_number: cinNumber,
             email: email // Explicitly include email in metadata
           }
         }
@@ -171,6 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             phone: phone || '',
             email: data.user.email || email,
             category: category || null,
+            company_name: companyName || null,
+            cin_number: cinNumber || null,
             rating: role === 'employer' ? 3.00 : 1.00,
             worker_status: role === 'employer' ? 'verification_pending' : 'document_upload_pending',
             status: role === 'employer' ? 'verification_pending' : 'document_upload_pending'

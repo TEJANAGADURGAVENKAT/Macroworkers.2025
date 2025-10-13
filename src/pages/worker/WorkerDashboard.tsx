@@ -33,7 +33,8 @@ import {
   Calendar,
   MessageSquare,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  Landmark
 } from "lucide-react";
 import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
@@ -76,6 +77,7 @@ const WorkerDashboard = () => {
     { title: "Find Jobs", url: "/worker/jobs", icon: Briefcase },
     { title: "My Tasks", url: "/worker/tasks", icon: FileText },
     { title: "Earnings", url: "/worker/earnings", icon: DollarSign },
+    { title: "Bank Details", url: "/worker/profile/bank-details", icon: Landmark },
     { title: "Raise Dispute", url: "/worker/disputes/raise", icon: AlertCircle },
     { title: "My Disputes", url: "/worker/disputes", icon: MessageSquare },
     { title: "Profile", url: "/worker/profile", icon: User },

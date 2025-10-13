@@ -24,6 +24,7 @@ import {
   Briefcase,
   CreditCard,
   User,
+  Users,
   Upload,
   Clock,
   XCircle,
@@ -80,6 +81,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       url: "/employer/payments", 
       icon: CreditCard,
       description: "Payment history"
+    },
+    { 
+      title: "Worker Payments", 
+      url: "/employer/worker-payments", 
+      icon: Users,
+      description: "Pay approved workers"
     },
     { 
       title: "Raise Dispute", 

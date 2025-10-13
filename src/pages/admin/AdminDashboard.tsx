@@ -21,7 +21,8 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
-  Shield
+  Shield,
+  CreditCard
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -746,6 +747,7 @@ Check browser console for detailed logs.`);
             <TabsTrigger value="employers">Employers ({stats.totalEmployers})</TabsTrigger>
             <TabsTrigger value="workers">Workers ({stats.totalWorkers})</TabsTrigger>
             <TabsTrigger value="submissions">All Submissions ({stats.totalSubmissions})</TabsTrigger>
+            <TabsTrigger value="payment-bank-details">Payment & Bank Details</TabsTrigger>
             <TabsTrigger value="employer-verifications">Employer Verifications</TabsTrigger>
           </TabsList>
 
@@ -1103,6 +1105,35 @@ Check browser console for detailed logs.`);
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payment & Bank Details Tab */}
+          <TabsContent value="payment-bank-details" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="h-5 w-5" />
+                  <span>Payment & Bank Details Overview</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Payment & Bank Details Management
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Monitor all worker payments, view bank account information, and track payment status across the platform.
+                  </p>
+                  <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                    <a href="/admin/payment-bank-details">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      View Payment & Bank Details
+                    </a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

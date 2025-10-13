@@ -30,6 +30,7 @@ import WorkerJobs from "./pages/worker/WorkerJobs";
 import WorkerTasks from "./pages/worker/WorkerTasks";
 import WorkerEarnings from "./pages/worker/WorkerEarnings";
 import WorkerProfile from "./pages/worker/WorkerProfile";
+import BankDetails from "./pages/worker/profile/BankDetails";
 import DocumentUpload from "./pages/worker/onboarding/DocumentUpload";
 import TaskDetail from "./pages/worker/TaskDetail";
 import InterviewSchedule from "./pages/worker/InterviewSchedule";
@@ -44,6 +45,7 @@ import WorkerVerification from "./pages/employer/WorkerVerification";
 import InterviewScheduling from "./pages/employer/InterviewScheduling";
 import SubmissionsReview from "./pages/employer/SubmissionsReview";
 import EmployerPayments from "./pages/employer/EmployerPayments";
+import WorkerPayments from "./pages/employer/WorkerPayments";
 import EmployerTaskDetail from "./pages/employer/EmployerTaskDetail";
 import EmployerVerificationPage from "./pages/employer/EmployerVerificationPage";
 import DashboardLayout from "./pages/employer/DashboardLayout";
@@ -67,6 +69,7 @@ import AdminDisputesPage from "./pages/admin/AdminDisputesPage";
 import AdminFinancials from "./pages/admin/AdminFinancials";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminEmployerApprovalPage from "./pages/admin/AdminEmployerApprovalPage";
+import PaymentBankDetailsOverview from "./pages/admin/PaymentBankDetailsOverview";
 import EmployerProfile from "./pages/employer/EmployerProfile";
 import TaskDetails from "./pages/employer/TaskDetails";
 import SubmissionDetail from "./pages/employer/SubmissionDetail";
@@ -139,6 +142,11 @@ function App() {
                 <Route path="/worker/profile" element={
                   <ProtectedRoute allowedRoles={['worker']}>
                     <WorkerProfile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/worker/profile/bank-details" element={
+                  <ProtectedRoute allowedRoles={['worker']}>
+                    <BankDetails />
                   </ProtectedRoute>
                 } />
                 <Route path="/worker/disputes/raise" element={
@@ -230,6 +238,13 @@ function App() {
                     </DashboardLayout>
                   </ProtectedRoute>
                 } />
+                <Route path="/employer/worker-payments" element={
+                  <ProtectedRoute allowedRoles={['employer']}>
+                    <DashboardLayout>
+                      <WorkerPayments />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                } />
                 <Route path="/employer/task/:id" element={
                   <ProtectedRoute allowedRoles={['employer']}>
                     <DashboardLayout>
@@ -304,6 +319,11 @@ function App() {
                 <Route path="/admin/financials" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AdminFinancials />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/payment-bank-details" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <PaymentBankDetailsOverview />
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/profile" element={
