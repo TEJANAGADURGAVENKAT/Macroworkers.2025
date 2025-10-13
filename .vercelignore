@@ -1,41 +1,38 @@
-# Ignore Supabase files that might confuse Vercel
+# AGGRESSIVE IGNORE - Only include essential build files
+# Ignore everything by default
+*
+
+# Allow only essential files for Vite React build
+!src/
+!public/
+!package.json
+!package-lock.json
+!vite.config.ts
+!tailwind.config.ts
+!tsconfig.json
+!tsconfig.app.json
+!tsconfig.node.json
+!postcss.config.js
+!components.json
+!index.html
+!vercel.json
+!.vercelignore
+!eslint.config.js
+
+# Explicitly ignore problematic directories
 supabase/
+node_modules/
+dist/
+.git/
+
+# Ignore all SQL and documentation files
 *.sql
 *.md
-debug_*.html
-test_*.sql
-fix_*.sql
-create_*.sql
-check_*.sql
-verify_*.sql
-setup_*.sql
-complete_*.sql
-simple_*.sql
-final_*.sql
-definitive_*.sql
-comprehensive_*.sql
-aggressive_*.sql
-immediate_*.sql
-quick_*.sql
-safe_*.sql
-manual_*.sql
-migrate_*.sql
-clear_*.sql
-delete_*.sql
-insert_*.sql
-update_*.sql
-disable_*.sql
-FORCE_*.sql
-CLEANUP_*.sql
-CHECK_*.sql
-DIAGNOSE_*.sql
-FIX_*.sql
-VERIFY_*.sql
-QUICK_*.sql
-SIMPLE_*.sql
-COMPLETE_*.sql
-MINIMAL_*.sql
-# Ignore development files
+*.html
 *.zip
-Untitled-*.txt
-h origin main
+*.txt
+
+# Ignore any potential serverless patterns
+api/
+functions/
+serverless/
