@@ -99,7 +99,9 @@ function App() {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Index />} />
+                <Route path="/home" element={<Index />} />
                 <Route path="/employers" element={<Employers />} />
+                <Route path="/employers/workers" element={<Workers />} />
                 <Route path="/workers" element={<Workers />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
