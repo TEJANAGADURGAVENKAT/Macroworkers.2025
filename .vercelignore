@@ -1,5 +1,5 @@
-# Ignore Supabase files that might confuse Vercel
-supabase/
+# Ignore Supabase migration files at root level only (not src/integrations/supabase/)
+/supabase/
 *.sql
 *.md
 debug_*.html
