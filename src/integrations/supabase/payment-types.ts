@@ -255,6 +255,7 @@ export const TRANSACTION_TYPES = {
 
 export const TRANSACTION_STATUSES = {
   PENDING: 'pending',
+  PENDING_DETAILS: 'pending_details',
   PROCESSING: 'processing',
   COMPLETED: 'completed',
   FAILED: 'failed',

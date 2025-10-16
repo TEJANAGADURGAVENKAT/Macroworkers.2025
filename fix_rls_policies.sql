@@ -1,69 +1,39 @@
--- Fix RLS Policies for Admin Dashboard
--- This script fixes Row Level Security policies that might be blocking admin access
+-- Quick fix for RLS policies - run this in Supabase SQL editor
 
--- 1. Check current RLS policies
-SELECT '=== CURRENT RLS POLICIES ===' as info;
-SELECT 
-  schemaname,
-  tablename,
-  policyname,
-  permissive,
-  roles,
-  cmd,
-  qual,
-  with_check
-FROM pg_policies 
-WHERE tablename = 'profiles';
+-- Drop existing policies first
+DROP POLICY IF EXISTS "Employers can upload transaction proofs" ON storage.objects;
+DROP POLICY IF EXISTS "Employers can view their own transaction proofs" ON storage.objects;
+DROP POLICY IF EXISTS "Workers can view proofs for their payments" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can view all transaction proofs" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload transaction proofs" ON storage.objects;
 
--- 2. Disable RLS temporarily for testing
-ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Employers can view their own transaction proofs" ON transaction_proofs;
+DROP POLICY IF EXISTS "Employers can insert transaction proofs" ON transaction_proofs;
+DROP POLICY IF EXISTS "Employers can update their own transaction proofs" ON transaction_proofs;
+DROP POLICY IF EXISTS "Workers can view proofs for their payments" ON transaction_proofs;
+DROP POLICY IF EXISTS "Admins can view all transaction proofs" ON transaction_proofs;
+DROP POLICY IF EXISTS "Admins can update all transaction proofs" ON transaction_proofs;
+DROP POLICY IF EXISTS "Authenticated users can insert transaction proofs" ON transaction_proofs;
 
--- 3. Create a proper admin policy that allows full access
-CREATE POLICY IF NOT EXISTS "Admin can access all profiles" ON public.profiles
-FOR ALL USING (
-  auth.role() = 'authenticated' AND 
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE user_id = auth.uid() AND role = 'admin'
-  )
-);
+-- Create new permissive policies for storage
+CREATE POLICY "Allow authenticated uploads to transaction-proofs" ON storage.objects
+    FOR INSERT WITH CHECK (
+        bucket_id = 'transaction-proofs' AND
+        auth.role() = 'authenticated'
+    );
 
--- 4. Create a policy for users to access their own profile
-CREATE POLICY IF NOT EXISTS "Users can access own profile" ON public.profiles
-FOR ALL USING (
-  auth.uid() = user_id
-);
+CREATE POLICY "Allow authenticated access to transaction-proofs" ON storage.objects
+    FOR SELECT USING (
+        bucket_id = 'transaction-proofs' AND
+        auth.role() = 'authenticated'
+    );
 
--- 5. Create a policy for public read access to basic profile info
-CREATE POLICY IF NOT EXISTS "Public can read basic profile info" ON public.profiles
-FOR SELECT USING (true);
+-- Create new permissive policies for transaction_proofs table
+CREATE POLICY "Allow authenticated inserts to transaction_proofs" ON transaction_proofs
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- 6. Enable RLS again
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated selects from transaction_proofs" ON transaction_proofs
+    FOR SELECT USING (auth.role() = 'authenticated');
 
--- 7. Test the queries again
-SELECT '=== TESTING QUERIES AFTER RLS FIX ===' as info;
-
-SELECT 'Workers Count:' as test;
-SELECT COUNT(*) as workers_count 
-FROM public.profiles 
-WHERE role = 'worker';
-
-SELECT 'Employers Count:' as test;
-SELECT COUNT(*) as employers_count 
-FROM public.profiles 
-WHERE role = 'employer';
-
-SELECT 'Admins Count:' as test;
-SELECT COUNT(*) as admins_count 
-FROM public.profiles 
-WHERE role = 'admin';
-
--- 8. Show final role distribution
-SELECT '=== FINAL ROLE DISTRIBUTION ===' as info;
-SELECT 
-  role,
-  COUNT(*) as count
-FROM public.profiles 
-GROUP BY role
-ORDER BY role;
+CREATE POLICY "Allow authenticated updates to transaction_proofs" ON transaction_proofs
+    FOR UPDATE USING (auth.role() = 'authenticated');

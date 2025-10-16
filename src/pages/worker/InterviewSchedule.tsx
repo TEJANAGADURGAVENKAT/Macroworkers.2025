@@ -247,7 +247,7 @@ const InterviewSchedule = () => {
                     <Alert className="border-success bg-success/5">
                       <CheckCircle2 className="h-4 w-4 text-success" />
                       <AlertDescription className="text-success">
-                        <strong>Congratulations!</strong> You have been selected for the position. 
+                        <strong>Congratulations!</strong> Interview done by {interview.employer_name || 'the employer'}. 
                         You will receive further instructions via email.
                       </AlertDescription>
                     </Alert>
@@ -257,7 +257,7 @@ const InterviewSchedule = () => {
                     <Alert className="border-destructive bg-destructive/5">
                       <AlertCircle className="h-4 w-4 text-destructive" />
                       <AlertDescription className="text-destructive">
-                        Thank you for your interest. Unfortunately, you were not selected for this position. 
+                        Thank you for your interest. {interview.employer_name || 'The employer'} has decided to go with another candidate. 
                         Please keep an eye out for other opportunities.
                       </AlertDescription>
                     </Alert>

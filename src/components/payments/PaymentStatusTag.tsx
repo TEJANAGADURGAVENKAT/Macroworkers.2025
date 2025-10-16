@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Clock, AlertCircle, Loader2, User } from "lucide-react";
 
-export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
+export type PaymentStatus = "pending" | "pending_details" | "processing" | "completed" | "failed";
 
 interface PaymentStatusTagProps {
   status: PaymentStatus;
@@ -37,6 +37,13 @@ const PaymentStatusTag = ({
           icon: Clock,
           className: "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-100",
           emoji: "🟡"
+        };
+      case "pending_details":
+        return {
+          label: "Pending Details",
+          icon: User,
+          className: "bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-100",
+          emoji: "🟣"
         };
       case "failed":
         return {

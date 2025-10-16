@@ -407,6 +407,49 @@ export const paymentService = {
   // Generate transaction ID
   generateTransactionId(): string {
     return `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  },
+
+  // Get transaction proof for a payment
+  async getTransactionProof(transactionId: string): Promise<{ file_url: string; file_name: string; file_type: string } | null> {
+    try {
+      // First, try to find the transaction proof by transaction ID
+      const { data: transactionProof, error } = await supabase
+        .from('transaction_proofs')
+        .select('file_url, file_name, file_type')
+        .eq('transaction_id', transactionId)
+        .single();
+
+      if (error) {
+        console.log('No transaction proof found by transaction ID:', error.message);
+        return null;
+      }
+
+      return transactionProof;
+    } catch (error) {
+      console.error('Error loading transaction proof:', error);
+      return null;
+    }
+  },
+
+  // Get transaction proof by payment record ID
+  async getTransactionProofByPaymentRecord(paymentRecordId: string): Promise<{ file_url: string; file_name: string; file_type: string } | null> {
+    try {
+      const { data: transactionProof, error } = await supabase
+        .from('transaction_proofs')
+        .select('file_url, file_name, file_type')
+        .eq('payment_record_id', paymentRecordId)
+        .single();
+
+      if (error) {
+        console.log('No transaction proof found by payment record ID:', error.message);
+        return null;
+      }
+
+      return transactionProof;
+    } catch (error) {
+      console.error('Error loading transaction proof:', error);
+      return null;
+    }
   }
 };
 

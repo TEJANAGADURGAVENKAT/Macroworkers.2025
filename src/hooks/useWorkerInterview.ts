@@ -16,6 +16,7 @@ export interface WorkerInterview {
   feedback?: string;
   created_at: string;
   updated_at: string;
+  employer_name?: string;
 }
 
 export interface InterviewSchedulingData {
@@ -40,6 +41,7 @@ export const useWorkerInterview = (workerId?: string) => {
       setLoading(true);
       setError(null);
 
+      // First, get the interview data
       const { data, error: fetchError } = await supabase
         .from('worker_interviews')
         .select('*')
@@ -52,7 +54,34 @@ export const useWorkerInterview = (workerId?: string) => {
         throw fetchError;
       }
 
-      setInterview(data || null);
+      // Process the data to include employer name
+      let employerName = 'Unknown Employer';
+      if (data) {
+        // Fetch employer name separately
+        const { data: employerData, error: employerError } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', data.employer_id)
+          .single();
+        
+        if (employerData && !employerError) {
+          employerName = employerData.full_name;
+        }
+      }
+
+      const processedData = data ? {
+        ...data,
+        employer_name: employerName
+      } : null;
+
+      console.log('Worker interview data:', {
+        data,
+        employerName,
+        employer_id: data?.employer_id,
+        processedData
+      });
+
+      setInterview(processedData);
     } catch (err: any) {
       console.error('Error fetching worker interview:', err);
       setError(err.message);

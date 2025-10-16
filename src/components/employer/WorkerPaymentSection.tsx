@@ -21,7 +21,8 @@ import {
   IndianRupee,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import PaymentStatusTag from "@/components/payments/PaymentStatusTag";
@@ -39,7 +40,9 @@ interface WorkerPayment {
   workerName: string;
   taskTitle: string;
   amount: number;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'pending_details' | 'processing' | 'completed';
+  paymentStatus: string;
+  paymentRecordId?: string;
   approvedAt: string;
   paidAt?: string;
   bankDetails?: {
@@ -59,11 +62,26 @@ const WorkerPaymentSection = () => {
   const [selectedPayment, setSelectedPayment] = useState<WorkerPayment | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isBankDetailsModalOpen, setIsBankDetailsModalOpen] = useState(false);
+  const [isTransactionProofModalOpen, setIsTransactionProofModalOpen] = useState(false);
+  const [transactionProofUrl, setTransactionProofUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadPayments();
+    fixIncompletePayments();
   }, []);
+
+  const fixIncompletePayments = async () => {
+    try {
+      // Fix completed payments with incomplete bank details
+      const { error: fixError } = await supabase.rpc('fix_incomplete_payments');
+      if (fixError) {
+        console.warn('Could not auto-fix incomplete payments:', fixError);
+      }
+    } catch (error) {
+      console.warn('Auto-fix function not available:', error);
+    }
+  };
 
   const loadPayments = async () => {
     if (!user?.id) return;
@@ -181,12 +199,53 @@ const WorkerPaymentSection = () => {
         const paymentRecord = paymentRecords?.find(p => p.task_id === submission.task_id && p.worker_id === submission.worker_id);
         const bankDetail = bankDetails?.find(b => b.worker_id === submission.worker_id);
         
+        // Determine the correct status based on payment record and bank details
+        let status: 'pending' | 'pending_details' | 'processing' | 'completed' = 'pending';
+        
+        // Check if bank details are complete
+        const hasCompleteBankDetails = bankDetail?.account_holder_name && 
+          bankDetail?.account_holder_name !== 'Not provided' &&
+          bankDetail?.bank_name && 
+          bankDetail?.bank_name !== 'Not provided' &&
+          bankDetail?.account_number && 
+          bankDetail?.account_number !== 'Not provided' &&
+          bankDetail?.ifsc_code && 
+          bankDetail?.ifsc_code !== 'Not provided';
+        
+        if (paymentRecord) {
+          // If payment record exists, use its status but validate completeness
+          if (paymentRecord.payment_status === 'completed') {
+            // Double-check: completed payments should have complete bank details
+            if (hasCompleteBankDetails) {
+              status = 'completed';
+            } else {
+              // Force to pending_details if bank details are incomplete
+              status = 'pending_details';
+            }
+          } else if (paymentRecord.payment_status === 'processing') {
+            status = 'processing';
+          } else if (paymentRecord.payment_status === 'pending_details') {
+            status = 'pending_details';
+          } else {
+            status = 'pending';
+          }
+        } else {
+          // No payment record exists, check if bank details are complete
+          if (!hasCompleteBankDetails) {
+            status = 'pending_details';
+          } else {
+            status = 'pending';
+          }
+        }
+
         return {
           id: submission.id,
           workerName: submission.profiles?.full_name || 'Unknown Worker',
           taskTitle: submission.tasks.title,
           amount: parseFloat(submission.tasks.budget || '0'),
-          status: paymentRecord?.payment_status === 'completed' ? 'completed' : 'pending',
+          status: status,
+          paymentStatus: paymentRecord?.payment_status || 'pending',
+          paymentRecordId: paymentRecord?.id,
           approvedAt: submission.reviewed_at || submission.created_at,
           paidAt: paymentRecord?.payment_completed_at,
           bankDetails: {
@@ -231,6 +290,66 @@ const WorkerPaymentSection = () => {
     loadPayments();
   };
 
+  const handleViewTransactionProof = async (payment: WorkerPayment) => {
+    try {
+      console.log('Loading transaction proof for payment:', payment);
+      console.log('Payment record ID:', payment.paymentRecordId);
+      console.log('Payment record ID type:', typeof payment.paymentRecordId);
+      console.log('Payment record ID truthy check:', !!payment.paymentRecordId);
+      
+      if (!payment.paymentRecordId || payment.paymentRecordId === 'undefined' || payment.paymentRecordId === 'null') {
+        console.error('Payment record ID is missing or invalid:', payment.paymentRecordId);
+        toast({
+          title: "No Payment Record Found",
+          description: `Payment record ID not found. Value: ${payment.paymentRecordId}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Proceeding to query transaction proof with ID:', payment.paymentRecordId);
+
+      // Get transaction proof details using the payment record ID
+      const { data: transactionProof, error: proofError } = await supabase
+        .from('transaction_proofs')
+        .select('file_url, file_name, file_type')
+        .eq('payment_record_id', payment.paymentRecordId)
+        .single();
+
+      console.log('Transaction proof query result:', { transactionProof, proofError });
+
+      if (proofError) {
+        console.error('Error loading transaction proof:', proofError);
+        toast({
+          title: "No Transaction Proof Found",
+          description: `Transaction proof file not found in database. Error: ${proofError.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (transactionProof?.file_url) {
+        console.log('Transaction proof file URL found:', transactionProof.file_url);
+        setTransactionProofUrl(transactionProof.file_url);
+        setIsTransactionProofModalOpen(true);
+      } else {
+        console.log('Transaction proof found but no file URL:', transactionProof);
+        toast({
+          title: "No Transaction Proof Found",
+          description: "Transaction proof file URL not found.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading transaction proof:', error);
+      toast({
+        title: "Error",
+        description: `Failed to load transaction proof: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -243,6 +362,8 @@ const WorkerPaymentSection = () => {
   };
 
   const pendingPayments = payments.filter(p => p.status === 'pending');
+  const pendingDetailsPayments = payments.filter(p => p.status === 'pending_details');
+  const processingPayments = payments.filter(p => p.status === 'processing');
   const completedPayments = payments.filter(p => p.status === 'completed');
 
   return (
@@ -265,11 +386,93 @@ const WorkerPaymentSection = () => {
           </div>
           <Separator orientation="vertical" className="h-12" />
           <div className="text-right">
+            <p className="text-sm text-muted-foreground">Pending Details</p>
+            <p className="text-2xl font-bold text-purple-600">{pendingDetailsPayments.length}</p>
+          </div>
+          <Separator orientation="vertical" className="h-12" />
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">Processing</p>
+            <p className="text-2xl font-bold text-yellow-600">{processingPayments.length}</p>
+          </div>
+          <Separator orientation="vertical" className="h-12" />
+          <div className="text-right">
             <p className="text-sm text-muted-foreground">Completed</p>
             <p className="text-2xl font-bold text-green-600">{completedPayments.length}</p>
           </div>
         </div>
       </div>
+
+      {/* Pending Details Payments */}
+      {pendingDetailsPayments.length > 0 && (
+        <Card className="shadow-md border-l-4 border-l-purple-400">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-purple-600" />
+              Pending Details Payments
+            </CardTitle>
+            <CardDescription>
+              Payments waiting for bank details or transaction proof completion
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Worker</TableHead>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Approved</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingDetailsPayments.map((payment) => (
+                    <TableRow key={payment.id} className="bg-purple-50/50">
+                      <TableCell className="font-medium">{payment.workerName}</TableCell>
+                      <TableCell className="max-w-xs truncate">{payment.taskTitle}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 font-semibold text-purple-600">
+                          <IndianRupee className="h-4 w-4" />
+                          {formatINR(payment.amount)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {getRelativeTime(payment.approvedAt)}
+                      </TableCell>
+                      <TableCell>
+                        <PaymentStatusTag status="pending_details" size="sm" />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewBankDetails(payment)}
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            View Details
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleMakePayment(payment)}
+                            className="bg-purple-600 hover:bg-purple-700"
+                            disabled={payment.bankDetails?.accountHolderName === 'Not provided'}
+                          >
+                            <IndianRupee className="h-3.5 w-3.5 mr-1" />
+                            Complete Payment
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending Payments */}
       {pendingPayments.length > 0 && (
@@ -426,11 +629,40 @@ const WorkerPaymentSection = () => {
           </DialogHeader>
           <Separator className="my-4" />
           {selectedPayment?.bankDetails && (
-            <BankDetailsCard
-              bankDetails={selectedPayment.bankDetails}
-              workerName={selectedPayment.workerName}
-              showTitle={false}
-            />
+            <div className="space-y-6">
+              <BankDetailsCard
+                bankDetails={selectedPayment.bankDetails}
+                workerName={selectedPayment.workerName}
+                showTitle={false}
+              />
+              
+              {/* Transaction Proof Section */}
+              {selectedPayment.paymentStatus === 'completed' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-green-900">
+                        Payment Completed
+                      </p>
+                      <p className="text-sm text-green-800">
+                        Transaction proof has been submitted and payment is confirmed.
+                      </p>
+                      <div className="flex items-center gap-2 mt-3">
+                        <FileText className="h-4 w-4 text-green-600" />
+                        <Button
+                          variant="link"
+                          className="h-auto p-0 text-sm text-green-700 font-medium hover:text-green-800"
+                          onClick={() => handleViewTransactionProof(selectedPayment)}
+                        >
+                          Transaction Proof: Click to View
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -447,6 +679,42 @@ const WorkerPaymentSection = () => {
           onPaymentSuccess={handlePaymentSuccess}
         />
       )}
+
+      {/* Transaction Proof Modal */}
+      <Dialog open={isTransactionProofModalOpen} onOpenChange={setIsTransactionProofModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <FileText className="h-6 w-6 text-primary" />
+              Transaction Proof
+            </DialogTitle>
+          </DialogHeader>
+          <Separator className="my-4" />
+          {transactionProofUrl && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  Click the button below to view/download the transaction proof file.
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => window.open(transactionProofUrl, '_blank')}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Transaction Proof
+                </Button>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600 text-center">
+                  File URL: {transactionProofUrl}
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

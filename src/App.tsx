@@ -21,6 +21,7 @@ import Employers from "./pages/Employers";
 import Workers from "./pages/Workers";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import FAQ from "./pages/FAQ";
 import Cookies from "./pages/Cookies";
 import NotFound from "./pages/NotFound";
 
@@ -105,6 +106,7 @@ function App() {
                 <Route path="/workers" element={<Workers />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
+                <Route path="/faq" element={<FAQ />} />
                 <Route path="/cookies" element={<Cookies />} />
                 <Route path="/payments" element={<Payments />} />
 

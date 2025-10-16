@@ -21,7 +21,9 @@ import {
   Search,
   Download,
   Eye,
-  Filter
+  Filter,
+  FileText,
+  CheckCircle
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import PaymentStatusTag from "@/components/payments/PaymentStatusTag";
@@ -70,6 +72,8 @@ const PaymentBankDetailsOverview = () => {
   const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBankDetailsModalOpen, setIsBankDetailsModalOpen] = useState(false);
+  const [transactionProofUrl, setTransactionProofUrl] = useState<string | null>(null);
+  const [isTransactionProofModalOpen, setIsTransactionProofModalOpen] = useState(false);
 
   useEffect(() => {
     loadPayments();
@@ -256,9 +260,36 @@ const PaymentBankDetailsOverview = () => {
     setFilteredPayments(filtered);
   };
 
-  const handleViewBankDetails = (payment: PaymentRecord) => {
+  const handleViewBankDetails = async (payment: PaymentRecord) => {
     setSelectedPayment(payment);
     setIsBankDetailsModalOpen(true);
+    
+    // Load transaction proof if payment is completed
+    if (payment.status === 'completed') {
+      try {
+        const { data: transactionProof, error } = await supabase
+          .from('transaction_proofs')
+          .select('file_url, file_name, file_type')
+          .eq('payment_record_id', payment.id)
+          .single();
+
+        if (error) {
+          console.log('No transaction proof found:', error.message);
+          setTransactionProofUrl(null);
+        } else if (transactionProof?.file_url) {
+          setTransactionProofUrl(transactionProof.file_url);
+        }
+      } catch (error) {
+        console.error('Error loading transaction proof:', error);
+        setTransactionProofUrl(null);
+      }
+    } else {
+      setTransactionProofUrl(null);
+    }
+  };
+
+  const handleViewTransactionProof = () => {
+    setIsTransactionProofModalOpen(true);
   };
 
   const handleExportData = () => {
@@ -548,10 +579,73 @@ const PaymentBankDetailsOverview = () => {
                   showTitle={false}
                 />
 
+                {/* Transaction Proof Section */}
+                {selectedPayment.status === 'completed' && transactionProofUrl && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-green-900">
+                          Payment Completed
+                        </p>
+                        <p className="text-sm text-green-800">
+                          Transaction proof has been submitted and payment is confirmed.
+                        </p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <FileText className="h-4 w-4 text-green-600" />
+                          <Button
+                            variant="link"
+                            className="h-auto p-0 text-sm text-green-700 font-medium hover:text-green-800"
+                            onClick={handleViewTransactionProof}
+                          >
+                            Transaction Proof: Click to View
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Status */}
                 <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
                   <span className="font-medium">Payment Status:</span>
                   <PaymentStatusTag status={selectedPayment.status} />
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Transaction Proof Modal */}
+        <Dialog open={isTransactionProofModalOpen} onOpenChange={setIsTransactionProofModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <FileText className="h-6 w-6 text-primary" />
+                Transaction Proof
+              </DialogTitle>
+            </DialogHeader>
+            <Separator className="my-4" />
+            {transactionProofUrl && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    Click the button below to view/download the transaction proof file.
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => window.open(transactionProofUrl, '_blank')}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Transaction Proof
+                  </Button>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 text-center">
+                    File URL: {transactionProofUrl}
+                  </p>
                 </div>
               </div>
             )}

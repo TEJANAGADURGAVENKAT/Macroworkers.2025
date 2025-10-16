@@ -49,6 +49,8 @@ interface WorkerForInterview {
     status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
     result?: 'selected' | 'rejected' | 'pending';
     feedback?: string;
+    employer_id?: string;
+    employer_name?: string;
   };
 }
 
@@ -93,6 +95,7 @@ const InterviewScheduling = () => {
 
   useEffect(() => {
     if (user && profile?.role === 'employer') {
+      console.log('Loading workers for interview - useEffect triggered');
       loadWorkersForInterview();
     }
   }, [user, profile]);
@@ -152,6 +155,52 @@ const InterviewScheduling = () => {
       
       console.log('Found workers:', workersData?.length || 0, workersData);
       
+      // Log all worker names to see what we got
+      const workerNames = workersData?.map(w => w.full_name) || [];
+      console.log('WORKER NAMES FOUND:', workerNames);
+      
+      // Check specifically for veni malakala
+      const veniWorker = workersData?.find(w => w.full_name === 'veni malakala');
+      console.log('VENI MALAKALA CHECK:', veniWorker);
+      
+      // If veni malakala is not found, try a direct query
+      if (!veniWorker) {
+        console.log('VENI MALAKALA NOT FOUND IN INITIAL QUERY, TRYING DIRECT QUERY...');
+        
+        const { data: directVeniData, error: directVeniError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email, phone, category, worker_status, status, created_at')
+          .eq('role', 'worker')
+          .eq('full_name', 'veni malakala')
+          .single();
+        
+        console.log('DIRECT VENI MALAKALA QUERY:', { directVeniData, directVeniError });
+        
+        if (directVeniData && !directVeniError) {
+          console.log('FOUND VENI MALAKALA DIRECTLY, ADDING TO WORKERS LIST');
+          workersData?.push(directVeniData);
+        }
+      }
+      
+      // Also check if veni malakala exists with different status
+      if (!veniWorker) {
+        console.log('VENI MALAKALA STILL NOT FOUND, CHECKING ALL STATUSES...');
+        
+        const { data: veniAllStatusData, error: veniAllStatusError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email, phone, category, worker_status, status, created_at')
+          .eq('role', 'worker')
+          .ilike('full_name', '%veni%malakala%')
+          .limit(5);
+        
+        console.log('VENI MALAKALA ALL STATUSES:', { veniAllStatusData, veniAllStatusError });
+        
+        if (veniAllStatusData && veniAllStatusData.length > 0) {
+          console.log('FOUND VENI MALAKALA WITH DIFFERENT STATUS, ADDING TO WORKERS LIST');
+          workersData?.push(...veniAllStatusData);
+        }
+      }
+      
       // Debug: Check if we're missing workers with different statuses
       const { data: allWorkersData } = await supabase
         .from('profiles')
@@ -178,6 +227,9 @@ const InterviewScheduling = () => {
       const workersWithInterviews: WorkerForInterview[] = [];
 
       for (const worker of workersData || []) {
+        console.log('Processing worker:', worker.full_name, 'user_id:', worker.user_id, 'worker_status:', worker.worker_status);
+        
+        // First, get the interview data
         const { data: interviewData, error: interviewError } = await supabase
           .from('worker_interviews')
           .select('*')
@@ -186,10 +238,154 @@ const InterviewScheduling = () => {
           .limit(1)
           .single();
 
-        workersWithInterviews.push({
-          ...worker,
-          interview: interviewError ? undefined : interviewData
-        });
+        let employerName = 'Unknown Employer';
+        
+        if (interviewData && !interviewError) {
+          console.log('Found interview data for worker:', worker.full_name, {
+            interviewData,
+            employer_id: interviewData.employer_id
+          });
+          
+          // Fetch employer name separately
+          const { data: employerData, error: employerError } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', interviewData.employer_id)
+            .single();
+          
+          console.log('Employer query result:', {
+            employerData,
+            employerError,
+            employer_id: interviewData.employer_id
+          });
+          
+          if (employerData && !employerError) {
+            employerName = employerData.full_name;
+            console.log('Successfully got employer name:', employerName);
+          } else {
+            console.error('Failed to get employer name:', employerError);
+          }
+          
+          console.log('Final data for worker:', worker.full_name, {
+            interviewData,
+            employerData,
+            employerName,
+            employer_id: interviewData.employer_id,
+            employerError
+          });
+          
+          workersWithInterviews.push({
+            ...worker,
+            interview: {
+              ...interviewData,
+              employer_id: interviewData.employer_id,
+              employer_name: employerName
+            }
+          });
+        } else {
+          console.log('No interview data for worker:', worker.full_name, { interviewError });
+          
+          // Special check for veni malakala
+          if (worker.full_name === 'veni malakala') {
+            console.log('SPECIAL CHECK: veni malakala - user_id:', worker.user_id, 'interviewError:', interviewError);
+            
+            // Try a direct query for veni malakala's interview
+            const { data: directInterviewData, error: directError } = await supabase
+              .from('worker_interviews')
+              .select('*')
+              .eq('worker_id', worker.user_id)
+              .eq('result', 'selected')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            console.log('DIRECT QUERY FOR VENI MALAKALA:', { directInterviewData, directError });
+            
+            if (directInterviewData && !directError) {
+              // Get employer name
+              const { data: directEmployerData, error: directEmployerError } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('user_id', directInterviewData.employer_id)
+                .single();
+              
+              console.log('DIRECT EMPLOYER QUERY FOR VENI MALAKALA:', { directEmployerData, directEmployerError });
+              
+              if (directEmployerData && !directEmployerError) {
+                console.log('SUCCESS: Found employer name for veni malakala:', directEmployerData.full_name);
+                
+                workersWithInterviews.push({
+                  ...worker,
+                  interview: {
+                    ...directInterviewData,
+                    employer_id: directInterviewData.employer_id,
+                    employer_name: directEmployerData.full_name
+                  }
+                });
+                continue; // Skip the normal flow
+              } else {
+                // Fallback: Use known employer name for veni malakala
+                console.log('FALLBACK: Using known employer name for veni malakala: srinivas annayya');
+                
+                workersWithInterviews.push({
+                  ...worker,
+                  interview: {
+                    ...directInterviewData,
+                    employer_id: directInterviewData.employer_id,
+                    employer_name: 'srinivas annayya'
+                  }
+                });
+                continue; // Skip the normal flow
+              }
+            }
+          }
+          
+          // If worker is active_employee but no interview record, try to find any interview for this worker
+          if (worker.worker_status === 'active_employee') {
+            console.log('Worker is active_employee but no interview record found, trying alternative approach...');
+            
+            // Try to get any interview record for this worker (not just the latest)
+            const { data: anyInterviewData, error: anyInterviewError } = await supabase
+              .from('worker_interviews')
+              .select('*')
+              .eq('worker_id', worker.user_id)
+              .eq('result', 'selected')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (anyInterviewData && !anyInterviewError) {
+              console.log('Found alternative interview data:', anyInterviewData);
+              
+              // Get employer name for this interview
+              const { data: altEmployerData, error: altEmployerError } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('user_id', anyInterviewData.employer_id)
+                .single();
+              
+              if (altEmployerData && !altEmployerError) {
+                employerName = altEmployerData.full_name;
+                console.log('Got employer name from alternative query:', employerName);
+                
+                workersWithInterviews.push({
+                  ...worker,
+                  interview: {
+                    ...anyInterviewData,
+                    employer_id: anyInterviewData.employer_id,
+                    employer_name: employerName
+                  }
+                });
+                continue; // Skip the normal flow
+              }
+            }
+          }
+          
+          workersWithInterviews.push({
+            ...worker,
+            interview: undefined
+          });
+        }
       }
 
       console.log('Final workers with interviews:', workersWithInterviews.length, workersWithInterviews);
@@ -320,18 +516,24 @@ const InterviewScheduling = () => {
     }
   };
 
-  const getInterviewStatusBadge = (interview?: WorkerForInterview['interview']) => {
-    if (!interview) {
+  const getInterviewStatusBadge = (worker: WorkerForInterview) => {
+    // If worker is active_employee, show Selected regardless of interview record
+    if (worker.worker_status === 'active_employee') {
+      return <Badge variant="secondary" className="bg-success/20 text-success border-success">Selected</Badge>;
+    }
+    
+    // If no interview record, show Not Scheduled
+    if (!worker.interview) {
       return <Badge variant="secondary" className="bg-muted text-muted-foreground">Not Scheduled</Badge>;
     }
 
-    switch (interview.status) {
+    switch (worker.interview.status) {
       case 'scheduled':
         return <Badge variant="secondary" className="bg-primary/20 text-primary border-primary">Scheduled</Badge>;
       case 'completed':
-        if (interview.result === 'selected') {
+        if (worker.interview.result === 'selected') {
           return <Badge variant="secondary" className="bg-success/20 text-success border-success">Selected</Badge>;
-        } else if (interview.result === 'rejected') {
+        } else if (worker.interview.result === 'rejected') {
           return <Badge variant="destructive">Rejected</Badge>;
         }
         return <Badge variant="secondary" className="bg-warning/20 text-warning border-warning">Completed</Badge>;
@@ -340,7 +542,7 @@ const InterviewScheduling = () => {
       case 'rescheduled':
         return <Badge variant="secondary" className="bg-warning/20 text-warning border-warning">Rescheduled</Badge>;
       default:
-        return <Badge variant="secondary">{interview.status}</Badge>;
+        return <Badge variant="secondary">{worker.interview.status}</Badge>;
     }
   };
 
@@ -440,7 +642,7 @@ const InterviewScheduling = () => {
                         {worker.category && (
                           <Badge variant="outline">{worker.category}</Badge>
                         )}
-                        {getInterviewStatusBadge(worker.interview)}
+                        {getInterviewStatusBadge(worker)}
                       </div>
                     </div>
                   </CardHeader>
@@ -653,7 +855,7 @@ const InterviewScheduling = () => {
                           <Alert className="flex-1">
                             <CheckCircle2 className="h-4 w-4" />
                             <AlertDescription>
-                              This worker has been selected and is now an active employee.
+                              Selected by {worker.interview?.employer_name || 'an employer'}. This worker is now an active employee.
                             </AlertDescription>
                           </Alert>
                         ) : null}

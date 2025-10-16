@@ -195,7 +195,7 @@ export const MyInterviewCard: React.FC<MyInterviewCardProps> = ({ className }) =
             <div className="flex items-center justify-center space-x-2">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <span className="text-lg font-semibold text-green-900">
-                Congratulations! You've been selected!
+                Congratulations! Interview done by {interview.employer_name || 'the employer'}!
               </span>
             </div>
           </div>
@@ -206,7 +206,7 @@ export const MyInterviewCard: React.FC<MyInterviewCardProps> = ({ className }) =
             <div className="flex items-center justify-center space-x-2">
               <XCircle className="h-5 w-5 text-red-600" />
               <span className="text-lg font-semibold text-red-900">
-                Thank you for your interest. Keep applying for other opportunities!
+                Thank you for your interest. {interview.employer_name || 'The employer'} has decided to go with another candidate. Keep applying for other opportunities!
               </span>
             </div>
           </div>

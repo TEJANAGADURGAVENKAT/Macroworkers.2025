@@ -21,7 +21,8 @@ import {
   AlertCircle,
   Shield,
   Clock,
-  IndianRupee
+  IndianRupee,
+  FileText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,8 @@ const BankDetails = () => {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
   const [pendingPaymentAmount, setPendingPaymentAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [transactionProofUrl, setTransactionProofUrl] = useState<string | null>(null);
+  const [isTransactionProofModalOpen, setIsTransactionProofModalOpen] = useState(false);
   const [formData, setFormData] = useState<BankDetailsForm>({
     bankName: "",
     accountHolderName: "",
@@ -115,6 +118,8 @@ const BankDetails = () => {
 
           if (completedPayments && completedPayments.length > 0) {
             setPaymentStatus("completed");
+            // Load transaction proof for completed payment
+            loadTransactionProof(completedPayments[0].id);
           } else {
             setPaymentStatus("pending");
           }
@@ -129,6 +134,27 @@ const BankDetails = () => {
         });
       } finally {
         setLoading(false);
+      }
+    };
+
+    const loadTransactionProof = async (paymentRecordId: string) => {
+      try {
+        const { data: transactionProof, error } = await supabase
+          .from('transaction_proofs')
+          .select('file_url, file_name, file_type')
+          .eq('payment_record_id', paymentRecordId)
+          .single();
+
+        if (error) {
+          console.log('No transaction proof found:', error.message);
+          return;
+        }
+
+        if (transactionProof?.file_url) {
+          setTransactionProofUrl(transactionProof.file_url);
+        }
+      } catch (error) {
+        console.error('Error loading transaction proof:', error);
       }
     };
 
@@ -433,6 +459,36 @@ const BankDetails = () => {
           </Card>
         )}
 
+        {/* Transaction Proof Section - Only show for completed payments */}
+        {paymentStatus === 'completed' && transactionProofUrl && (
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1">
+                  <FileText className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-medium text-green-900">
+                      Transaction Proof Available
+                    </p>
+                    <p className="text-sm text-green-700">
+                      The employer has uploaded a transaction proof for your payment. You can view it to confirm the payment details.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                  onClick={() => setIsTransactionProofModalOpen(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Proof
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Security Notice */}
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-4">
@@ -692,6 +748,51 @@ const BankDetails = () => {
             </form>
           </CardContent>
         </Card>
+
+        {/* Transaction Proof Modal */}
+        {transactionProofUrl && (
+          <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isTransactionProofModalOpen ? 'block' : 'hidden'}`}>
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  Transaction Proof
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsTransactionProofModalOpen(false)}
+                >
+                  ✕
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    This is the transaction proof uploaded by your employer. You can view or download this file to verify your payment details.
+                  </p>
+                </div>
+                
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => window.open(transactionProofUrl, '_blank')}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Transaction Proof
+                  </Button>
+                </div>
+                
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <p className="text-xs text-gray-600 text-center">
+                    File URL: {transactionProofUrl}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
