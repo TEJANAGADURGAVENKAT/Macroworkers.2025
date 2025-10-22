@@ -150,7 +150,7 @@ export type Database = {
           assigned_to: string | null
           budget: number | null
           category: string | null
-          completed_slots: number | null
+          assigned_count: number | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -162,7 +162,6 @@ export type Database = {
           title: string
           updated_at: string | null
           max_workers: number | null
-          assigned_count: number | null
           assignment_start_time: string | null
           assignment_end_time: string | null
         }
@@ -170,7 +169,7 @@ export type Database = {
           assigned_to?: string | null
           budget?: number | null
           category?: string | null
-          completed_slots?: number | null
+          assigned_count?: number | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -182,7 +181,6 @@ export type Database = {
           title: string
           updated_at?: string | null
           max_workers?: number | null
-          assigned_count?: number | null
           assignment_start_time?: string | null
           assignment_end_time?: string | null
         }
@@ -190,7 +188,7 @@ export type Database = {
           assigned_to?: string | null
           budget?: number | null
           category?: string | null
-          completed_slots?: number | null
+          assigned_count?: number | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -202,7 +200,6 @@ export type Database = {
           title?: string
           updated_at?: string | null
           max_workers?: number | null
-          assigned_count?: number | null
           assignment_start_time?: string | null
           assignment_end_time?: string | null
         }

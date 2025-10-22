@@ -43,12 +43,17 @@ interface Task {
   created_at: string;
   created_by: string;
   requirements?: string;
-  max_workers?: number;
-  assigned_count?: number;
+  max_workers: number;
+  assigned_count: number;
   assignment_start_time?: string;
   assignment_end_time?: string;
   required_rating?: number;
   role_category?: string;
+  difficulty?: string;
+  slots?: number;
+  is_time_sensitive?: boolean;
+  time_slot_start?: string;
+  time_slot_end?: string;
 }
 
 interface TaskAssignment {
@@ -75,31 +80,229 @@ const WorkerJobs = () => {
   const [assigningTask, setAssigningTask] = useState<string | null>(null);
   const [assignedTasks, setAssignedTasks] = useState<Set<string>>(new Set());
   const [taskSlotCounts, setTaskSlotCounts] = useState<Record<string, number>>({});
+  const [refreshingSlots, setRefreshingSlots] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Load slot counts for all tasks
+  // Load slot counts for all tasks - use database assigned_count field
   const loadTaskSlotCounts = async (taskIds: string[]) => {
     try {
-      const { data: assignments, error } = await supabase
-        .from('task_assignments')
-        .select('task_id')
-        .in('task_id', taskIds);
+      setRefreshingSlots(true);
+      console.log('🚨 Loading slot counts for task IDs:', taskIds);
+      
+      // Get slot information directly from tasks table using assigned_count
+      const { data: tasksData, error } = await supabase
+        .from('tasks')
+        .select('id, assigned_count, max_workers, updated_at')
+        .in('id', taskIds);
 
       if (error) {
-        console.error('Error loading slot counts:', error);
+        console.error('🚨 Error loading slot counts:', error);
         return;
       }
 
-      // Count assignments per task
+      console.log('🚨 Raw tasks data from database:', tasksData);
+
+      // Use the assigned_count from database (should be updated by triggers)
       const counts: Record<string, number> = {};
-      assignments?.forEach(assignment => {
-        counts[assignment.task_id] = (counts[assignment.task_id] || 0) + 1;
+      tasksData?.forEach(task => {
+        // Use assigned_count as the current count, handle NULL values
+        const currentCount = task.assigned_count || 0;
+        counts[task.id] = currentCount;
+        console.log(`🚨 Task ${task.id}: assigned_count=${task.assigned_count || 0}, max_workers=${task.max_workers}, updated_at=${task.updated_at}, using=${currentCount}`);
       });
 
+      console.log('🚨 Processed slot counts:', counts);
       setTaskSlotCounts(counts);
+      
+      // Force UI re-render to ensure slot counts are displayed correctly
+      setForceUpdate(prev => prev + 1);
+      console.log('🚨 Force update triggered, new value:', forceUpdate + 1);
     } catch (error) {
-      console.error('Error loading slot counts:', error);
+      console.error('🚨 Error loading slot counts:', error);
+    } finally {
+      setRefreshingSlots(false);
     }
   };
+
+  // Manual refresh function that directly updates all slot counts from database
+  const manualRefreshSlotCounts = async () => {
+    try {
+      console.log('🚨 MANUAL REFRESH: Updating all slot counts from database');
+      
+      // Get all active tasks
+      const { data: allTasks, error } = await supabase
+        .from('tasks')
+        .select('id, assigned_count, max_workers')
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('🚨 Error fetching all tasks:', error);
+        return;
+      }
+
+      // Count actual assignments for each task
+      const counts: Record<string, number> = {};
+      
+      for (const task of allTasks || []) {
+        const { data: assignments, error: assignmentError } = await supabase
+          .from('task_assignments')
+          .select('id')
+          .eq('task_id', task.id)
+          .in('status', ['assigned', 'working', 'submitted', 'completed']);
+
+        if (assignmentError) {
+          console.error('🚨 Error counting assignments for task', task.id, ':', assignmentError);
+          counts[task.id] = task.assigned_count || 0;
+        } else {
+          const actualCount = assignments?.length || 0;
+          counts[task.id] = actualCount;
+          
+          // Update the database if counts don't match
+          if (actualCount !== (task.assigned_count || 0)) {
+            console.log(`🚨 CORRECTING DATABASE: Task ${task.id} assigned_count ${task.assigned_count || 0} -> ${actualCount}`);
+            
+            const { error: updateError } = await supabase
+              .from('tasks')
+              .update({ 
+                assigned_count: actualCount,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', task.id);
+
+            if (updateError) {
+              console.error('🚨 Error updating task', task.id, ':', updateError);
+            } else {
+              console.log(`🚨 SUCCESS: Updated task ${task.id} assigned_count to ${actualCount}`);
+            }
+          }
+        }
+      }
+
+      console.log('🚨 MANUAL REFRESH: Final slot counts:', counts);
+      setTaskSlotCounts(counts);
+      setForceUpdate(prev => prev + 1);
+      
+      toast({
+        title: "Slot Counts Refreshed",
+        description: "All slot counts have been updated from the database.",
+      });
+      
+    } catch (error) {
+      console.error('🚨 Error in manual refresh:', error);
+      toast({
+        title: "Refresh Failed",
+        description: "Could not refresh slot counts. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Refresh slot counts every 5 seconds to keep them up-to-date (reduced from 10s)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (tasks.length > 0) {
+        const taskIds = tasks.map(t => t.id);
+        console.log('🚨 Auto-refreshing slot counts every 5 seconds');
+        loadTaskSlotCounts(taskIds);
+      }
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [tasks]);
+
+  // Refresh slot counts when page becomes visible (user switches back to tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && tasks.length > 0) {
+        const taskIds = tasks.map(t => t.id);
+        console.log('Page became visible, refreshing slot counts');
+        loadTaskSlotCounts(taskIds);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [tasks]);
+
+  // Real-time subscription to task assignments for immediate updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('task_assignments_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'task_assignments'
+        },
+        (payload) => {
+          console.log('🚨 Real-time assignment change detected:', payload);
+          
+          // Force immediate UI update
+          setForceUpdate(prev => prev + 1);
+          console.log('🚨 Force update triggered due to real-time change');
+          
+          // Optimistically update slot counts based on the change
+          if (payload.eventType === 'INSERT') {
+            setTaskSlotCounts(prev => {
+              const updated = { ...prev };
+              updated[payload.new.task_id] = (updated[payload.new.task_id] || 0) + 1;
+              console.log('🚨 Real-time: Slot count increased for task:', payload.new.task_id, 'New count:', updated[payload.new.task_id]);
+              return updated;
+            });
+            
+            // Force UI update
+            setForceUpdate(prev => prev + 1);
+          } else if (payload.eventType === 'DELETE') {
+            setTaskSlotCounts(prev => {
+              const updated = { ...prev };
+              updated[payload.old.task_id] = Math.max(0, (updated[payload.old.task_id] || 0) - 1);
+              console.log('🚨 Real-time: Slot count decreased for task:', payload.old.task_id, 'New count:', updated[payload.old.task_id]);
+              return updated;
+            });
+            
+            // Force UI update
+            setForceUpdate(prev => prev + 1);
+          }
+          
+          // Refresh slot counts when any assignment changes
+          if (tasks.length > 0) {
+            const taskIds = tasks.map(t => t.id);
+            console.log('🚨 Refreshing slot counts due to real-time change');
+            loadTaskSlotCounts(taskIds);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        },
+        (payload) => {
+          console.log('🚨 Real-time task change detected:', payload);
+          
+          // Force immediate UI update
+          setForceUpdate(prev => prev + 1);
+          console.log('🚨 Force update triggered due to task change');
+          
+          // Refresh slot counts when task data changes
+          if (tasks.length > 0) {
+            const taskIds = tasks.map(t => t.id);
+            console.log('🚨 Refreshing slot counts due to task change');
+            loadTaskSlotCounts(taskIds);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, tasks]);
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -112,17 +315,18 @@ const WorkerJobs = () => {
 
         if (ratingSummary) {
           setWorkerRating(ratingSummary.average_rating);
+          console.log('🔍 Worker rating loaded:', ratingSummary.average_rating);
         } else {
           // Fallback to default for new workers
           setWorkerRating(1.0);
+          console.log('🔍 Worker rating fallback to 1.0');
         }
 
-        // Load tasks that the worker is qualified for based on rating and category
+        // Load ALL active tasks (universal trigger handles slot counting for all tasks)
         const { data, error } = await supabase
           .from("tasks")
           .select("*")
           .eq("status", "active")
-          .lte("required_rating", ratingSummary?.average_rating || 1.0)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -148,9 +352,10 @@ const WorkerJobs = () => {
         
         setTasks(data || []);
         
-        // Skip slot count loading to avoid database issues
-        // Initialize empty slot counts
-        setTaskSlotCounts({});
+        // Load slot counts for all tasks immediately
+        const taskIds = (data || []).map(t => t.id);
+        console.log('Loading slot counts for task IDs:', taskIds);
+        await loadTaskSlotCounts(taskIds);
 
         // Load already assigned tasks
         await loadAssignedTasks();
@@ -252,14 +457,26 @@ const WorkerJobs = () => {
         }
       }
 
-      // Skip slot checking for now to avoid database issues
-      // Just proceed with assignment
+      // Check if task has available slots before assignment
+      const currentAssignedCount = task.assigned_count || 0;
+      const maxWorkers = task.max_workers || 1;
+      
+      if (currentAssignedCount >= maxWorkers) {
+        toast({
+          title: "Task Full",
+          description: `This task is already full (${currentAssignedCount}/${maxWorkers} slots taken).`,
+          variant: "destructive"
+        });
+        return;
+      }
 
       // Create task assignment with proper error handling
       console.log('Creating assignment with data:', {
         task_id: taskId,
         worker_id: user.id,
-        status: 'assigned'
+        status: 'assigned',
+        current_slots: currentAssignedCount,
+        max_slots: maxWorkers
       });
 
       // Create in task_assignments table - simplified insert
@@ -306,8 +523,46 @@ const WorkerJobs = () => {
         return;
       }
 
+      console.log('Assignment successful! Assignment data:', assignmentData);
+
       // Update local state immediately for optimistic UI
       setAssignedTasks(prev => new Set([...prev, taskId]));
+
+      // Optimistically update slot counts immediately
+      setTaskSlotCounts(prev => {
+        const updated = { ...prev };
+        updated[taskId] = (updated[taskId] || 0) + 1;
+        console.log('🚨 Optimistically updated slot counts:', updated);
+        return updated;
+      });
+      
+      // Force UI re-render after optimistic update
+      setForceUpdate(prev => prev + 1);
+      console.log('🚨 Force update after optimistic slot update');
+
+      // DIRECTLY UPDATE THE DATABASE assigned_count FIELD
+      console.log('🚨 DIRECTLY UPDATING DATABASE assigned_count for task:', taskId);
+      
+      const { error: updateError } = await supabase
+        .from('tasks')
+        .update({ 
+          assigned_count: currentAssignedCount + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId);
+
+      if (updateError) {
+        console.error('🚨 Error updating assigned_count:', updateError);
+      } else {
+        console.log('🚨 Successfully updated assigned_count in database');
+      }
+
+      // Refresh slot counts to reflect the new assignment
+      const taskIds = tasks.map(t => t.id);
+      console.log('🚨 Refreshing slot counts after assignment for task IDs:', taskIds);
+      
+      // Immediate refresh
+      await loadTaskSlotCounts(taskIds);
 
       // Show success toast
       toast({
@@ -342,15 +597,15 @@ const WorkerJobs = () => {
 
   // Helper function to check if task has available slots
   const hasAvailableSlots = (task: Task) => {
-    const currentCount = taskSlotCounts[task.id] || 0;
-    const maxSlotsAvailable = (task as any).slots || 1; // Use only slots column to avoid ambiguity
+    const currentCount = task.assigned_count || 0;
+    const maxSlotsAvailable = task.max_workers || 1;
     return currentCount < maxSlotsAvailable;
   };
 
   // Helper function to get available slots count
   const getAvailableSlots = (task: Task) => {
-    const currentCount = taskSlotCounts[task.id] || 0;
-    const totalSlots = (task as any).slots || 1; // Use only slots column to avoid ambiguity
+    const currentCount = task.assigned_count || 0;
+    const totalSlots = task.max_workers || 1;
     return Math.max(0, totalSlots - currentCount);
   };
 
@@ -379,7 +634,8 @@ const WorkerJobs = () => {
                                    workerCategory === taskRoleCategory;
       
       // Hide tasks that are full (unless worker is already assigned)
-      const isTaskFull = (task as any).max_workers && (task as any).assigned_count >= (task as any).max_workers;
+      const currentAssignedCount = task.assigned_count || 0;
+      const isTaskFull = task.max_workers && currentAssignedCount >= task.max_workers;
       const isWorkerAssigned = assignedTasks.has(task.id);
       const shouldShowFullTask = !isTaskFull || isWorkerAssigned;
       
@@ -495,8 +751,29 @@ const WorkerJobs = () => {
   };
 
   const canAccessTask = (task: any) => {
-    // Check rating requirement
-    if ((task.required_rating || 1.0) > workerRating) {
+    // Check rating requirement - worker rating should be >= required rating
+    const requiredRating = task.required_rating || 1.0;
+    const hasRequiredRating = workerRating >= requiredRating;
+    
+    console.log(`🔍 Rating check for ${task.title}:`, {
+      workerRating,
+      requiredRating,
+      hasRequiredRating,
+      comparison: `${workerRating} >= ${requiredRating} = ${hasRequiredRating}`
+    });
+
+    // Check slot availability
+    const currentAssignedCount = task.assigned_count || 0;
+    const isTaskFull = task.max_workers && currentAssignedCount >= task.max_workers;
+    
+    console.log(`🔍 Slot check for ${task.title}:`, {
+      max_workers: task.max_workers,
+      assigned_count: currentAssignedCount,
+      isTaskFull,
+      slots_left: task.max_workers - currentAssignedCount
+    });
+
+    if (!hasRequiredRating) {
       return false;
     }
 
@@ -510,8 +787,8 @@ const WorkerJobs = () => {
       }
     }
 
-    // Check worker limit
-    if (task.max_workers && task.assigned_count >= task.max_workers) {
+    // Check worker limit using current slot counts
+    if (isTaskFull) {
       return false;
     }
 
@@ -540,97 +817,110 @@ const WorkerJobs = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Available Tasks</h1>
-            <p className="text-muted-foreground">Find tasks that match your skills and rating level</p>
-          </div>
-          <Button variant="outline" asChild>
-            <Link to="/worker">← Back to Dashboard</Link>
-          </Button>
-        </div>
-
-        {/* Worker Rating Info */}
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1">
-                  <Star className="h-5 w-5 text-yellow-500" />
-                  <span className="font-semibold text-lg">{workerRating.toFixed(1)}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Professional Header Section */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Briefcase className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium">Your Current Rating</p>
-                  <p className="text-sm text-muted-foreground">
-                    {(profile as any)?.total_tasks_completed || 0} tasks completed
-                  </p>
+                  <h1 className="text-2xl font-bold text-gray-900">Job Marketplace</h1>
+                  <p className="text-sm text-gray-600 font-medium">Discover opportunities that match your skills</p>
                 </div>
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2 rounded-lg border border-amber-200">
+                <Star className="h-5 w-5 text-amber-600" />
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-900">Rating: {workerRating.toFixed(1)}</span>
+                  <span className="text-gray-500 ml-2">/ 5.0</span>
+                </div>
+              </div>
+              
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowRatingInfo(!showRatingInfo)}
+                onClick={() => navigate('/worker')}
+                className="flex items-center space-x-2 bg-white hover:bg-gray-50 border-gray-300 text-gray-700 hover:text-gray-900"
               >
-                {showRatingInfo ? "Hide" : "Show"} Rating Info
+                <TrendingUp className="h-4 w-4" />
+                <span className="font-medium">Dashboard</span>
               </Button>
             </div>
-            
-            {showRatingInfo && (
-              <div className="mt-4 p-3 bg-white rounded-lg border">
-                <h4 className="font-medium mb-2">Rating System:</h4>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-                  <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="font-medium">1★</div>
-                    <div className="text-xs text-muted-foreground">Basic</div>
-                  </div>
-                  <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="font-medium">2★</div>
-                    <div className="text-xs text-muted-foreground">Beginner</div>
-                  </div>
-                  <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="font-medium">3★</div>
-                    <div className="text-xs text-muted-foreground">Intermediate</div>
-                  </div>
-                  <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="font-medium">4★</div>
-                    <div className="text-xs text-muted-foreground">Advanced</div>
-                  </div>
-                  <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="font-medium">5★</div>
-                    <div className="text-xs text-muted-foreground">Expert</div>
-                  </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+
+          {/* Professional Stats Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <Award className="h-6 w-6 text-white" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  You can only see and apply for tasks that match your rating level or lower.
-                </p>
-                <div className="mt-3 p-2 bg-green-50 rounded border border-green-200">
-                  <p className="text-xs text-green-800">
-                    <strong>New:</strong> Employers can now pre-select workers based on skills and ratings!
-                  </p>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Your Rating</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold text-gray-900">{workerRating.toFixed(1)}</span>
+                    <div className="flex">
+                      {renderStars(workerRating)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Tasks Completed</p>
+                  <p className="text-2xl font-bold text-gray-900">{(profile as any)?.total_tasks_completed || 0}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                  <IndianRupee className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Earnings</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{((profile as any)?.total_earnings || 0).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
+          {/* Search and Filter Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex flex-col lg:flex-row gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
-                  placeholder="Search tasks..."
-                  className="pl-10"
+                  placeholder="Search for tasks by title, description, or skills..."
+                  className="pl-12 h-12 text-gray-900 placeholder-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="md:w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
+                <SelectTrigger className="lg:w-64 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                  <Filter className="h-5 w-5 mr-3 text-gray-400" />
+                  <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
@@ -641,108 +931,147 @@ const WorkerJobs = () => {
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground">
-            {isLoading ? "Loading tasks..." : `Showing ${filteredTasks.length} of ${tasks.length} available tasks`}
-          </p>
-        </div>
-
-        {loadError && (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-destructive">
-                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                <p>{loadError}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {!isLoading && filteredTasks.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Star className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Tasks Available</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery || selectedCategory !== "all" 
-                  ? "No tasks match your current filters."
-                  : "No tasks are currently available for your rating level."
-                }
-              </p>
-              {workerRating < 3.0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Tip:</strong> Complete more tasks to improve your rating and unlock higher-level opportunities!
-                  </p>
-                </div>
-              )}
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 max-w-md mx-auto">
-                <p className="text-sm text-blue-800">
-                  <strong>Pro Tip:</strong> Keep your skills and languages updated in your profile to increase your chances of being selected for tasks!
+          {/* Task Count and Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="bg-white rounded-lg px-4 py-2 border border-gray-200">
+                <p className="text-sm font-medium text-gray-700">
+                  {isLoading ? "Loading tasks..." : `${filteredTasks.length} of ${tasks.length} tasks available`}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+            
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  console.log('🚨 Manual refresh triggered by user');
+                  manualRefreshSlotCounts();
+                }}
+                className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300 text-gray-700 hover:text-gray-900"
+                disabled={refreshingSlots}
+              >
+                {refreshingSlots ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Users className="h-4 w-4" />
+                )}
+                {refreshingSlots ? 'Refreshing...' : 'Refresh Slots'}
+              </Button>
+            </div>
+          </div>
 
-        <div className="grid gap-4">
-          {filteredTasks.map((task) => (
+          {/* Error State */}
+          {loadError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+              <div className="text-center">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+                <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Tasks</h3>
+                <p className="text-red-700">{loadError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && filteredTasks.length === 0 && !loadError && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+              <div className="text-center">
+                <Briefcase className="h-16 w-16 mx-auto mb-6 text-gray-400" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Tasks Found</h3>
+                <p className="text-gray-600 mb-6">
+                  {searchQuery || selectedCategory !== 'all' 
+                    ? "Try adjusting your search criteria or filters to find more tasks."
+                    : "There are currently no available tasks. Check back later for new opportunities!"
+                  }
+                </p>
+                {(searchQuery || selectedCategory !== 'all') && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory("all");
+                    }}
+                    className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 hover:text-gray-900"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tasks Grid */}
+          <div className="grid gap-6">
+            {filteredTasks.map((task) => (
               <motion.div
-                key={task.id}
+                key={`${task.id}-${forceUpdate}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+                transition={{ duration: 0.3 }}
               >
-              <Card className={`hover:shadow-md transition-shadow ${
-                !canAccessTask(task) ? 'opacity-60' : ''
-              }`}>
-                  <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-start gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold mb-2">{task.title}</h3>
-                          <p className="text-muted-foreground mb-3 line-clamp-2">
-                            {task.description}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2 ml-4">
-                          <Badge variant="secondary" className={`${getDifficultyColor(task.difficulty)} flex items-center space-x-1`}>
-                            {getDifficultyIcon(task.difficulty)}
-                            <span>{task.difficulty || "Not specified"}</span>
-                          </Badge>
-                          <Badge variant="outline" className={`${getRatingColor(task.required_rating || 1.0)} flex items-center space-x-1`}>
-                            <Star className="h-3 w-3 text-yellow-500" />
-                            <span>{task.required_rating || 1.0}★</span>
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <IndianRupee className="h-4 w-4" />
-                          <span className="font-medium text-foreground">{formatINR(task.budget || 0)}</span>
+                <div className={`bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 ${
+                  !canAccessTask(task) ? 'opacity-60' : ''
+                }`}>
+                  <div className="p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                      {/* Task Content */}
+                      <div className="flex-1 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">{task.title}</h3>
+                            <p className="text-gray-600 mb-4 line-clamp-2">
+                              {task.description}
+                            </p>
                           </div>
-                        <div className="flex items-center space-x-1">
-                          <Users className="h-4 w-4" />
-                          <span>{task.slots || 1} slot{task.slots !== 1 ? 's' : ''}</span>
+                          <div className="flex items-center space-x-3 ml-6">
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(task.difficulty)}`}>
+                              {getDifficultyIcon(task.difficulty)}
+                              <span className="ml-1">{task.difficulty || "Not specified"}</span>
                             </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-4 w-4" />
-                          <span>{task.category || "General"}</span>
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${getRatingColor(task.required_rating || 1.0)}`}>
+                              <Star className="h-3 w-3 text-yellow-500" />
+                              <span className="ml-1">{task.required_rating || 1.0}★</span>
+                            </div>
+                          </div>
                         </div>
-                        {task.is_time_sensitive && (
-                          <div className="flex items-center space-x-1">
-                            <Timer className="h-4 w-4" />
-                            <span className={isTimeSlotActive(task) ? "text-green-600" : "text-red-600"}>
-                              {isTimeSlotActive(task) ? "Active Now" : "Time Restricted"}
-                            </span>
+
+                        {/* Task Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                              <IndianRupee className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Payment</p>
+                              <p className="text-lg font-bold text-gray-900">{formatINR(task.budget || 0)}</p>
+                            </div>
                           </div>
-                        )}
+                          
+                          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+                              <Users className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Available Slots</p>
+                              <p className="text-lg font-bold text-gray-900">
+                                {Math.max(0, (task.max_workers || 1) - (task.assigned_count || 0))} of {task.max_workers || 1}
+                              </p>
+                            </div>
                           </div>
+                          
+                          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                              <Clock className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Category</p>
+                              <p className="text-lg font-bold text-gray-900">{task.category || "General"}</p>
+                            </div>
+                          </div>
+                        </div>
 
                       {/* Time Slot Information with Progress Bar */}
                       {task.is_time_sensitive && formatTimeSlot(task) && (
@@ -819,12 +1148,15 @@ const WorkerJobs = () => {
                         <div className="flex items-center space-x-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
                           <Users className="h-4 w-4 text-purple-600" />
                           <span className="text-sm text-purple-800">
-                            Slots left: {(task.max_workers || 0) - (task.assigned_count || 0)} of {task.max_workers}
+                            Slots left: {Math.max(0, (task.max_workers || 1) - (task.assigned_count || 0))} of {task.max_workers || 1}
                           </span>
-                          {task.assigned_count >= task.max_workers && (
+                          {!hasAvailableSlots(task) && (
                             <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">
                               Full
                             </Badge>
+                          )}
+                          {refreshingSlots && (
+                            <Loader2 className="h-3 w-3 animate-spin text-purple-600" />
                           )}
                         </div>
                       )}
@@ -833,99 +1165,118 @@ const WorkerJobs = () => {
                         <div className="flex items-center space-x-2 p-2 bg-red-50 rounded-lg border border-red-200">
                           <AlertCircle className="h-4 w-4 text-red-600" />
                           <span className="text-sm text-red-800">
-                            Requires {task.required_rating}★ rating. Your rating: {workerRating.toFixed(1)}★
+                            {(() => {
+                              const requiredRating = task.required_rating || 1.0;
+                              const hasRequiredRating = workerRating >= requiredRating;
+                              const currentAssignedCount = task.assigned_count || 0;
+                              const isTaskFull = task.max_workers && currentAssignedCount >= task.max_workers;
+                              
+                              if (!hasRequiredRating) {
+                                return `Requires ${task.required_rating}★ rating. Your rating: ${workerRating.toFixed(1)}★`;
+                              } else if (isTaskFull) {
+                                return `Task is full (${currentAssignedCount}/${task.max_workers} slots taken)`;
+                              } else {
+                                return "Cannot access this task";
+                              }
+                            })()}
                           </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-col space-y-2 md:w-40">
-                      <Button 
-                        className="w-full" 
-                        disabled={!canAccessTask(task)}
-                        asChild
-                      >
-                        <Link to={`/worker/task/${task.id}`}>
-                          {canAccessTask(task) ? "View Details" : "Rating Too Low"}
-                        </Link>
-                      </Button>
-                      
-                      {canAccessTask(task) && (
-                        assignedTasks.has(task.id) ? (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="w-full"
-                            asChild
-                          >
-                            <Link to={`/worker/task/${task.id}`}>
-                              <Play className="h-4 w-4 mr-2" />
-                              Work on Task
-                            </Link>
-                          </Button>
-                        ) : (
-                          <div className="space-y-2">
-                            {/* Slot availability indicator */}
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-gray-600">
-                                Slots: {getAvailableSlots(task)} of {task.slots || 1} available
-                              </span>
-                              {!hasAvailableSlots(task) && (
-                                <Badge variant="destructive" className="text-xs">
-                                  Slots Full
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            <Button
-                              variant={hasAvailableSlots(task) ? "outline" : "secondary"}
-                              size="sm"
-                              className={`w-full transition-all duration-200 ${
-                                hasAvailableSlots(task) 
-                                  ? "hover:scale-105" 
-                                  : "opacity-50 cursor-not-allowed"
-                              }`}
-                              disabled={
-                                assigningTask === task.id || 
-                                !canAccessTask(task) || 
-                                !hasAvailableSlots(task)
+                      {/* Action Buttons */}
+                      <div className="flex flex-col space-y-3 lg:w-48">
+                        <Button 
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300" 
+                          disabled={!canAccessTask(task)}
+                          asChild
+                        >
+                          <Link to={`/worker/task/${task.id}`}>
+                            {(() => {
+                              const requiredRating = task.required_rating || 1.0;
+                              const hasRequiredRating = workerRating >= requiredRating;
+                              const currentAssignedCount = task.assigned_count || 0;
+                              const isTaskFull = task.max_workers && currentAssignedCount >= task.max_workers;
+                              
+                              if (!hasRequiredRating) {
+                                return "Rating Too Low";
+                              } else if (isTaskFull) {
+                                return "Slots Full";
+                              } else {
+                                return "View Details";
                               }
-                              onClick={() => handleAssignTask(task.id)}
-                              aria-label={`Assign yourself to task: ${task.title}`}
-                              aria-describedby={`task-${task.id}-description`}
+                            })()}
+                          </Link>
+                        </Button>
+                        
+                        {canAccessTask(task) && (
+                          assignedTasks.has(task.id) ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full bg-green-50 hover:bg-green-100 border-green-300 text-green-700 hover:text-green-800 font-medium"
+                              asChild
                             >
-                              {assigningTask === task.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-                                  <span aria-live="polite">Assigning...</span>
-                                </>
-                              ) : !hasAvailableSlots(task) ? (
-                                <>
-                                  <AlertCircle className="h-4 w-4 mr-2" aria-hidden="true" />
-                                  Slots Full
-                                </>
-                              ) : (
-                                <>
-                                  <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
-                                  Assign Task
-                                </>
-                              )}
+                              <Link to={`/worker/task/${task.id}`}>
+                                <Play className="h-4 w-4 mr-2" />
+                                Continue Task
+                              </Link>
                             </Button>
-                          </div>
-                        )
-                      )}
-                      
-                      {task.requirements && (
-                        <p className="text-xs text-muted-foreground text-center">
-                          {task.requirements}
-                        </p>
-                      )}
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600 font-medium">
+                                  Available: {Math.max(0, (task.max_workers || 1) - (task.assigned_count || 0))}/{task.max_workers || 1}
+                                </span>
+                                {!hasAvailableSlots(task) && (
+                                  <div className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                                    Full
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <Button
+                                variant={hasAvailableSlots(task) ? "default" : "secondary"}
+                                size="sm"
+                                className={`w-full font-semibold py-2 rounded-lg transition-all duration-200 ${
+                                  hasAvailableSlots(task) 
+                                    ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl hover:scale-105" 
+                                    : "opacity-50 cursor-not-allowed"
+                                }`}
+                                disabled={
+                                  assigningTask === task.id || 
+                                  !canAccessTask(task) || 
+                                  !hasAvailableSlots(task)
+                                }
+                                onClick={() => handleAssignTask(task.id)}
+                              >
+                                {assigningTask === task.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Assigning...
+                                  </>
+                                ) : !hasAvailableSlots(task) ? (
+                                  <>
+                                    <AlertCircle className="h-4 w-4 mr-2" />
+                                    Slots Full
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Assign Task
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </motion.div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

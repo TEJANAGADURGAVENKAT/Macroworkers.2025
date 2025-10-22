@@ -529,12 +529,11 @@ const RoleBasedTasks = () => {
         required_rating: Number(formData.requiredRating) || 1.0,
         max_workers: Number(formData.maxSlots) || 1,
         assigned_count: 0,
+        completed_slots: 0,
         role_category: selectedCategory?.name === 'IT Department' ? 'IT' : 
                       selectedCategory?.name === 'Digital Marketing' ? 'Digital Marketing' :
                       selectedCategory?.name === 'Blockchain' ? 'Blockchain/AI' :
-                      'General',
-        slots: Number(formData.maxSlots) || 1,
-        completed_slots: 0
+                      'General'
       };
 
       console.log('Creating task with data:', taskData);

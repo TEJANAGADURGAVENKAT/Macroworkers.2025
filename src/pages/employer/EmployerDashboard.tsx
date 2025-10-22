@@ -56,7 +56,7 @@ interface Task {
   status: string;
   created_at: string;
   slots?: number;
-  completed_slots?: number;
+  assigned_count?: number;
   submission_count?: { count: number }[];
   employer_name?: string;
   max_assignees?: number;
@@ -810,7 +810,7 @@ const EmployerDashboard = () => {
                     ) : (
                                              activeCampaigns.map((campaign) => {
                          const target = campaign.slots || 0;
-                         const completed = campaign.completed_slots || 0;
+                         const completed = campaign.assigned_count || 0;
                          
                          return (
                           <div key={campaign.id} className="p-4 bg-muted/30 rounded-lg space-y-3">
