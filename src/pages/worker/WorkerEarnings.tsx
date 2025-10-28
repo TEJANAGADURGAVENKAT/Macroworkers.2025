@@ -20,6 +20,8 @@ import {
 import { formatINR } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { checkWorkerBankDetails } from "@/lib/bank-details-validation";
+import { BankDetailsValidationModal } from "@/components/ui/bank-details-validation-modal";
 
 interface EarningsData {
   currentBalance: number;
@@ -69,6 +71,8 @@ const WorkerEarnings = () => {
     successRate: 0,
     totalTasks: 0
   });
+  const [showBankDetailsModal, setShowBankDetailsModal] = useState(false);
+  const [hasBankDetails, setHasBankDetails] = useState<boolean | null>(null);
 
   // Load wallet balance from wallet_balances table
   const loadWalletBalance = async () => {
@@ -327,7 +331,26 @@ const WorkerEarnings = () => {
 
   useEffect(() => {
     loadEarningsData();
+    if (user) {
+      checkBankDetails();
+    }
   }, [user]);
+
+  const checkBankDetails = async () => {
+    if (!user) return;
+    
+    try {
+      const bankDetailsCheck = await checkWorkerBankDetails(user.id);
+      setHasBankDetails(bankDetailsCheck.hasBankDetails);
+      
+      // Show modal if no bank details and there are pending payments
+      if (!bankDetailsCheck.hasBankDetails && earningsData.pendingPayments > 0) {
+        setShowBankDetailsModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking bank details:', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -617,6 +640,13 @@ const WorkerEarnings = () => {
           </div>
         </div>
       </div>
+      
+      {/* totalEarnings Modal */}
+      <BankDetailsValidationModal
+        isOpen={showBankDetailsModal}
+        onClose={() => setShowBankDetailsModal(false)}
+        hasBankDetails={hasBankDetails || false}
+      />
     </div>
   );
 };

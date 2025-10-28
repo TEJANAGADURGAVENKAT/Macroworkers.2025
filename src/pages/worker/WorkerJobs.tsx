@@ -31,6 +31,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getEmployeeRatingSummary } from "@/lib/employee-ratings-api";
 import { useToast } from "@/hooks/use-toast";
+import { checkWorkerBankDetails } from "@/lib/bank-details-validation";
+import { BankDetailsValidationModal } from "@/components/ui/bank-details-validation-modal";
 
 // TypeScript interfaces for better type safety
 interface Task {
@@ -82,6 +84,8 @@ const WorkerJobs = () => {
   const [taskSlotCounts, setTaskSlotCounts] = useState<Record<string, number>>({});
   const [refreshingSlots, setRefreshingSlots] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [showBankDetailsModal, setShowBankDetailsModal] = useState(false);
+  const [hasBankDetails, setHasBankDetails] = useState<boolean | null>(null);
 
   // Load slot counts for all tasks - use database assigned_count field
   const loadTaskSlotCounts = async (taskIds: string[]) => {
@@ -411,6 +415,15 @@ const WorkerJobs = () => {
     setAssigningTask(taskId);
     
     try {
+      // Check bank details before allowing task assignment
+      const bankDetailsCheck = await checkWorkerBankDetails(user.id);
+      setHasBankDetails(bankDetailsCheck.hasBankDetails);
+      
+      if (!bankDetailsCheck.hasBankDetails) {
+        setShowBankDetailsModal(true);
+        return;
+      }
+      
       // Check if already assigned
       if (assignedTasks.has(taskId)) {
         toast({
@@ -1279,6 +1292,13 @@ const WorkerJobs = () => {
           </div>
         </div>
       </div>
+      
+      {/* Bank Details Validation Modal */}
+      <BankDetailsValidationModal
+        isOpen={showBankDetailsModal}
+        onClose={() => setShowBankDetailsModal(false)}
+        hasBankDetails={hasBankDetails || false}
+      />
     </div>
   );
 };

@@ -44,7 +44,7 @@ const BankDetails = () => {
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [hasExistingDetails, setHasExistingDetails] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending_details");
   const [pendingPaymentAmount, setPendingPaymentAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [transactionProofUrl, setTransactionProofUrl] = useState<string | null>(null);
@@ -111,17 +111,29 @@ const BankDetails = () => {
           // Check if there are completed payments
           const { data: completedPayments } = await supabase
             .from('task_payment_records')
-            .select('id')
+            .select('id, payment_status')
             .eq('worker_id', user.id)
             .eq('payment_status', 'completed')
+            .limit(1);
+
+          // Also check for pending_details status payments
+          const { data: pendingDetailsPayments } = await supabase
+            .from('task_payment_records')
+            .select('id, payment_status')
+            .eq('worker_id', user.id)
+            .eq('payment_status', 'pending_details')
             .limit(1);
 
           if (completedPayments && completedPayments.length > 0) {
             setPaymentStatus("completed");
             // Load transaction proof for completed payment
             loadTransactionProof(completedPayments[0].id);
+          } else if (pendingDetailsPayments && pendingDetailsPayments.length > 0) {
+            // If there are pending_details payments, allow bank details to be added
+            setPaymentStatus("pending_details");
           } else {
-            setPaymentStatus("pending");
+            // No payments at all - new worker
+            setPaymentStatus("pending_details");
           }
         }
 
@@ -348,6 +360,24 @@ const BankDetails = () => {
         p_worker_id: user.id,
         p_metadata: { bank_name: formData.bankName }
       });
+
+      // If payment status was pending_details, update it to pending
+      if (paymentStatus === 'pending_details') {
+        const { error: updateError } = await supabase
+          .from('task_payment_records')
+          .update({ 
+            payment_status: 'pending',
+            updated_at: new Date().toISOString()
+          })
+          .eq('worker_id', user.id)
+          .eq('payment_status', 'pending_details');
+
+        if (updateError) {
+          console.error('Error updating payment status:', updateError);
+        } else {
+          setPaymentStatus('pending');
+        }
+      }
 
       setHasExistingDetails(true);
       
@@ -727,6 +757,16 @@ const BankDetails = () => {
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <p className="text-sm text-green-800">
                     Bank details cannot be edited after payment completion. Contact admin for changes.
+                  </p>
+                </div>
+              )}
+
+              {/* Pending Details Notice */}
+              {paymentStatus === 'pending_details' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm text-blue-800">
+                    Please add your bank details to receive payments. Your employer has already initiated payment processing.
                   </p>
                 </div>
               )}
